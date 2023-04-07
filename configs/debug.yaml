@@ -1,0 +1,5 @@
+action: train # train or test
+name: test
+
+dataset:
+  shift: D1-D1

@@ -1,0 +1,39 @@
+action: save # train or test
+name: saved_feat_I3D
+split: test
+resume_from: ./saved_models/I3D_SourceOnlyD1
+
+save:
+  num_clips: 5
+  dense_sampling:
+    RGB: True
+  num_frames_per_clip:
+    RGB: 16
+
+dataset:
+  annotations_path: train_val
+  shift: ???
+  workers: 4
+  stride: 2
+  resolution: 224
+  RGB:
+    data_path: ???
+    tmpl: "img_{:010d}.jpg"
+  Event:
+    rgb4e: 6
+
+# these are the action recognition models for each modality
+models:
+  RGB:
+    model: I3D
+    dropout: 0.5
+    normalize: False
+    resolution: 224
+    kwargs: {}
+    lr_steps: 3000
+    lr: 0.01
+    sgd_momentum: 0.9
+    weight_decay: 1e-7
+    weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'
+
+
