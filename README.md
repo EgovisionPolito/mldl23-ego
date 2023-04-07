@@ -1,5 +1,4 @@
 # Starting code for course project of Machine Learning and Deep Learning (MLDL) 2023
-"Multimodal Egocentric Vision" exam project.
 
 ## Getting started
 
