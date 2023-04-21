@@ -1,0 +1,8 @@
+1. Numero di clip nel loader viene chiamato nel main con num_clips=None. cosa significa il parametro? Dobbiamo deciderlo noi?
+2. Nel train si utilizzano snippet singoli da ciascun video campionati casualmente o 5 snippet per video (paper 7)
+3. Su cosa avviene la classificazione? su intero segmento (circa 7 min) o su piccola clip (qualche secondo), le clip vanno campionate? Dove troviamo le classificazioni vere e proprie?
+4. cosa sono le clip? cosa sono gli snippet? cosa sono i segmenti?
+5. se le clip sono segmenti temporali di 16frames, non è ridondante salvare gli indici dei 16 frames (piuttosto che salvare solamente il frame centrale o di inizio)
+6. qual'è la differenza tra train e test?
+7. dove avviene il bindig tra clip e azione? (qual'è il file delle azioni?)
+8. i3D fornisce features non intepretabili o un vettore di score delle azioni?

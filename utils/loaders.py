@@ -74,7 +74,9 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
+        
         raise NotImplementedError("You should implement _get_train_indices")
+    
 
     def _get_val_indices(self, record, modality):
         ##################################################################
