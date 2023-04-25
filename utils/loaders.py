@@ -8,6 +8,8 @@ import os
 import os.path
 from utils.logger import logger
 
+import numpy as np
+
 class EpicKitchensDataset(data.Dataset, ABC):
     def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
                  transform=None, load_feat=False, additional_info=False, **kwargs):
@@ -74,9 +76,16 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        
-        raise NotImplementedError("You should implement _get_train_indices")
-    
+        indices = np.zeros([self.num_clips,self.num_frames_per_clip])
+        N = record.num_frames[modality]
+
+        interval = int(np.floor(N/self.num_clips))
+
+        for i in np.arange(0,self.num_clips):
+            tmp = np.arange(i*interval,i*interval+self.num_frames_per_clip)
+            tmp[tmp>N] = N
+            indices[i] = tmp 
+        return indices
 
     def _get_val_indices(self, record, modality):
         ##################################################################
@@ -87,7 +96,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_val_indices")
+        return  self._get_train_indices(self, record, modality)
 
     def __getitem__(self, index):
 
