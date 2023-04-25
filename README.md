@@ -29,3 +29,6 @@ As a reference, `colab_runner.ipynb` provides an example of how to set up a work
 
 NOTE: you need to stay connected to the Google Colab interface at all times for your python scripts to keep training.
 
+## Link Utili
+Indicazioni Progetto: https://docs.google.com/document/d/1DvOqTtqZ94FobxMGCXh4-EWY3C5AOTzM3Sj1WH8LAvM/edit
+
