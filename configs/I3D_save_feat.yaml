@@ -1,7 +1,7 @@
 action: save # train or test
 name: saved_feat_I3D
 split: test
-resume_from:  ./checkpoints/I3D_SourceOnlyD1
+resume_from:  /content/drive/MyDrive/MLDL/checkpoints/I3D_SourceOnlyD1
 
 save:
   num_clips: 5
