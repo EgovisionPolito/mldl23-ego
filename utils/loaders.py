@@ -7,6 +7,7 @@ from PIL import Image
 import os
 import os.path
 from utils.logger import logger
+import numpy as np
 
 class EpicKitchensDataset(data.Dataset, ABC):
     def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
@@ -74,7 +75,20 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_train_indices")
+         
+        tot_frames=self.num_frames_per_clip
+        n_centroids=5
+        n_frames=16
+        
+        sub=[]
+        for i in range(1,n_centroids+1):
+            
+            centr_pos=int(i*tot_frames/(n_centroids+1))
+            sub.append(range(centr_pos-8, centr_pos+9))
+
+        #raise NotImplementedError("You should implement _get_val_indices")
+        return np.array(sub)
+        #raise NotImplementedError("You should implement _get_train_indices")
 
     def _get_val_indices(self, record, modality):
         ##################################################################
@@ -85,7 +99,20 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_val_indices")
+         
+        tot_frames=self.num_frames_per_clip
+        n_centroids=5
+        n_frames=16
+        
+        sub=[]
+        for i in range(1,n_centroids+1):
+            
+            centr_pos=int(i*tot_frames/(n_centroids+1))
+            sub.append(range(centr_pos-8, centr_pos+9))
+
+        #raise NotImplementedError("You should implement _get_val_indices")
+        return np.array(sub)
+       # raise NotImplementedError("You should implement _get_val_indices")
 
     def __getitem__(self, index):
 
