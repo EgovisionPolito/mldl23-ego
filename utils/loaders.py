@@ -76,15 +76,15 @@ class EpicKitchensDataset(data.Dataset, ABC):
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
          
-        tot_frames=self.num_frames_per_clip
-        n_centroids=5
-        n_frames=16
+        tot_frames=len(record)
+        n_centroids=self.num_clips
+        n_frames=self.num_frames_per_clip
         
         sub=[]
         for i in range(1,n_centroids+1):
             
             centr_pos=int(i*tot_frames/(n_centroids+1))
-            sub.append(range(centr_pos-8, centr_pos+9))
+            sub.append(range(centr_pos-(n_frames/2), centr_pos+(n_frames/2+1)))
 
         #raise NotImplementedError("You should implement _get_val_indices")
         return np.array(sub)
@@ -100,15 +100,15 @@ class EpicKitchensDataset(data.Dataset, ABC):
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
          
-        tot_frames=self.num_frames_per_clip
-        n_centroids=5
-        n_frames=16
+        tot_frames=len(record)
+        n_centroids=self.num_clips
+        n_frames=self.num_frames_per_clip
         
         sub=[]
         for i in range(1,n_centroids+1):
             
             centr_pos=int(i*tot_frames/(n_centroids+1))
-            sub.append(range(centr_pos-8, centr_pos+9))
+            sub.append(range(centr_pos-(n_frames/2), centr_pos+(n_frames/2+1)))
 
         #raise NotImplementedError("You should implement _get_val_indices")
         return np.array(sub)
