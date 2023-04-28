@@ -76,15 +76,17 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        indices = np.zeros([self.num_clips,self.num_frames_per_clip])
+        indices = np.zeros([self.num_clips,self.num_frames_per_clip[modality]])
         N = record.num_frames[modality]
 
         interval = int(np.floor(N/self.num_clips))
 
         for i in np.arange(0,self.num_clips):
-            tmp = np.arange(i*interval,i*interval+self.num_frames_per_clip)
+            tmp = np.arange(i*interval,i*interval+self.num_frames_per_clip[modality])
             tmp[tmp>N] = N
             indices[i] = tmp 
+
+        indices = indices.reshape([self.num_clips*self.num_frames_per_clip[modality],1])
         return indices
 
     def _get_val_indices(self, record, modality):
@@ -96,7 +98,18 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        return  self._get_train_indices(self, record, modality)
+        indices = np.zeros([self.num_clips,self.num_frames_per_clip[modality]])
+        N = record.num_frames[modality]
+
+        interval = int(np.floor(N/self.num_clips))
+
+        for i in np.arange(0,self.num_clips):
+            tmp = np.arange(i*interval,i*interval+self.num_frames_per_clip[modality])
+            tmp[tmp>N] = N
+            indices[i] = tmp 
+            
+        indices = indices.reshape([self.num_clips*self.num_frames_per_clip[modality],1])
+        return indices
 
     def __getitem__(self, index):
 
@@ -158,11 +171,14 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
             idx_untrimmed = record.start_frame + idx
             try:
-                img = Image.open(os.path.join(data_path, record.untrimmed_video_name, tmpl.format(idx_untrimmed))) \
-                    .convert('RGB')
+                person = record.untrimmed_video_name.split('_')[0]
+                img = Image.open(os.path.join(data_path, person,record.untrimmed_video_name, tmpl.format(idx_untrimmed))).convert('RGB')
+                
             except FileNotFoundError:
                 print("Img not found")
+                person = record.untrimmed_video_name.split('_')[0]
                 max_idx_video = int(sorted(glob.glob(os.path.join(data_path,
+                                                                  person,
                                                                   record.untrimmed_video_name,
                                                                   "img_*")))[-1].split("_")[-1].split(".")[0])
                 if idx_untrimmed > max_idx_video:
