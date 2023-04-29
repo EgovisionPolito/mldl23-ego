@@ -84,7 +84,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         for i in range(1,n_centroids+1):
             
             centr_pos=int(i*tot_frames/(n_centroids+1))
-            sub.append(range(centr_pos-(n_frames/2), centr_pos+(n_frames/2+1)))
+            sub.append(range(int(centr_pos-(n_frames/2)), int(centr_pos+(n_frames/2+1))))
 
         #raise NotImplementedError("You should implement _get_val_indices")
         return np.array(sub)
@@ -108,7 +108,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         for i in range(1,n_centroids+1):
             
             centr_pos=int(i*tot_frames/(n_centroids+1))
-            sub.append(range(centr_pos-(n_frames/2), centr_pos+(n_frames/2+1)))
+            sub.append(range(int(centr_pos-(n_frames/2)), int(centr_pos+(n_frames/2+1))))
 
         #raise NotImplementedError("You should implement _get_val_indices")
         return np.array(sub)
