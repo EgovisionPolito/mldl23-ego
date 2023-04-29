@@ -110,8 +110,11 @@ class EpicKitchensDataset(data.Dataset, ABC):
             centr_pos=int(i*tot_frames/(n_centroids+1))
             sub.append(range(int(centr_pos-(n_frames/2)), int(centr_pos+(n_frames/2+1))))
 
+        ret = np.array(sub).flatten()
+        if not ret.size == self.num_clips * n_frames:
+            raise UserWarning(f"Invalid number of frames: it is {ret.size}, should be {self.num_clips * n_frames}")
         #raise NotImplementedError("You should implement _get_val_indices")
-        return np.array(sub).flatten()
+        return 
        # raise NotImplementedError("You should implement _get_val_indices")
 
     def __getitem__(self, index):
