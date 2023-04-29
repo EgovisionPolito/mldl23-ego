@@ -87,7 +87,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
             sub.append(range(int(centr_pos-(n_frames/2)), int(centr_pos+(n_frames/2+1))))
 
         #raise NotImplementedError("You should implement _get_val_indices")
-        return np.array(sub)
+        return np.array(sub).flatten()
         #raise NotImplementedError("You should implement _get_train_indices")
 
     def _get_val_indices(self, record, modality):
@@ -111,7 +111,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
             sub.append(range(int(centr_pos-(n_frames/2)), int(centr_pos+(n_frames/2+1))))
 
         #raise NotImplementedError("You should implement _get_val_indices")
-        return np.array(sub)
+        return np.array(sub).flatten()
        # raise NotImplementedError("You should implement _get_val_indices")
 
     def __getitem__(self, index):
