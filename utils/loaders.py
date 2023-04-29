@@ -78,7 +78,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
          
         tot_frames=record.num_frames[modality]
         n_centroids=self.num_clips
-        n_frames=self.num_frames_per_clip
+        n_frames=self.num_frames_per_clip[modality]
         
         sub=[]
         for i in range(1,n_centroids+1):
@@ -102,7 +102,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
          
         tot_frames=record.num_frames[modality]
         n_centroids=self.num_clips
-        n_frames=self.num_frames_per_clip
+        n_frames=self.num_frames_per_clip[modality]
         
         sub=[]
         for i in range(1,n_centroids+1):
