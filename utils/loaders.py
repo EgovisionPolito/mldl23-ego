@@ -76,7 +76,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
          
-        tot_frames=len(record)
+        tot_frames=record.num_frames()
         n_centroids=self.num_clips
         n_frames=self.num_frames_per_clip
         
@@ -100,7 +100,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
          
-        tot_frames=len(record)
+        tot_frames=record.num_frames()
         n_centroids=self.num_clips
         n_frames=self.num_frames_per_clip
         
