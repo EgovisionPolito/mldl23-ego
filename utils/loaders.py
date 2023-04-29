@@ -118,7 +118,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
 
         ret = np.array(sub).flatten()
         if not ret.size == self.num_clips * n_frames:
-            raise UserWarning(f"Invalid number of frames: it is {ret.size}, should be {self.num_clips * n_frames}")
+            raise UserWarning(f"miao Invalid number of frames: it is {ret.size}, should be {self.num_clips * n_frames}")
         #raise NotImplementedError("You should implement _get_val_indices")
         return ret
        # raise NotImplementedError("You should implement _get_val_indices")
