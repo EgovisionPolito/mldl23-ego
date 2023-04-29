@@ -128,7 +128,7 @@ class ActionRecognition(tasks.Task, ABC):
         wandb.log(logs)
 
     def reduce_learning_rate(self):
-        """Perform a learning rate step."""
+        """Perform a learning rate step. Previous learning rate gets divided by 10"""
         for m in self.modalities:
             prev_lr = self.optimizer[m].param_groups[-1]["lr"]
             new_lr = self.optimizer[m].param_groups[-1]["lr"] / 10

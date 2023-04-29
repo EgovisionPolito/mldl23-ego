@@ -1,0 +1,18 @@
+Sto tentando di runnare il file train_classifier.py
+
+Ho creato un envoirment conda, chiamato "egovision" (tutto fatto tramite anaconda prompt). Da vscode ho linkato l'envoirment con il debugger (fatto partire il debugger e settato l'envoirment egovision in basso a destra).
+
+Man mano che il codice non trovava pacchetti li ho installati sul conda envoirment attraverso l'anaconda prompt. Appena aperto ho scritto "conda activate egovision" e poi "conda install NOMEPACCHETTO" oppure "pip install NOMEPACCHETTO" nel caso il pacchetto non sia presente nei canali di distribuzione di default di conda.
+
+Gli argomenti del codice vengono trattati nel file util.args, che viene importato nel main. In questo file ci sono sia argomenti scritti nel codice e sia codice che si occupa di trattare gli argomenti presenti nel file default.yaml presente nella cartella configs (riga 30).
+
+NB! facendo partire il codice tramite debugger di vscode senza specificare argomenti da linea di comando, nel file utils.args gli argomenti presenti all'interno del file "debug.yaml" SOVRASCRIVONO quelli presenti nel file "default.yaml" (possono essere un sottoinsieme di argomenti).
+
+DA ORA IN POI PER TESTARE IL CODICE CAMBIO SOLAMENTE GLI ARGOMENTI IN debug.yaml AMMENOCHè NON SIANO ARGOMENTI FISSI E ADATTI ALL'ESECUZIONE SU OGNI MACCHINA
+
+Utilizzata la configurazione nel file I3D_save_feat, copiata nel file debug.yaml, sto cercando di runnare safe_feat.py. Adesso l'azione che si sta cercando di eseguire è "save".
+
+Creata la cartella "checkpoints" che conterrà i file unzippati da I3D_SourceOnlyD1.
+
+Creata la cartella "annotations" che contiene le annotazioni dei file
+

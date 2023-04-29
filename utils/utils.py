@@ -3,7 +3,7 @@ import torch
 
 
 def get_domains_and_labels(args):
-    num_verbs = 8
+    num_verbs = 8 # forcing num classes to be 8 ?
     domains = {'D1': 8, 'D2': 1, 'D3': 22}
     source_domain = domains[args.dataset.shift.split("-")[0]]
     target_domain = domains[args.dataset.shift.split("-")[1]]

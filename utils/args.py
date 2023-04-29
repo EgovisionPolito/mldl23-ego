@@ -37,8 +37,9 @@ if 'config' in cli_args and cli_args.config:
     conf_args = OmegaConf.load(cli_args.config)
     args = OmegaConf.merge(args, conf_args)
 else:
-    conf_args = OmegaConf.load(os.path.join(conf_path, "debug.yaml"))
-    args = OmegaConf.merge(args, conf_args)
+    conf_args = OmegaConf.load(os.path.join(conf_path, "debug.yaml")) 
+    #NB! qui vengono sovrascritti gli args di default.yaml con quelli di debug.yaml
+    args = OmegaConf.merge(args, conf_args) 
 
 path_args = add_paths()
 args = OmegaConf.merge(args, path_args)

@@ -46,11 +46,15 @@ def main():
     logger.info("Instantiating models per modality")
     for m in modalities:
         logger.info('{} Net\tModality: {}'.format(args.models[m].model, m))
+        # instantiate a model class for each model in args with the relative arguments for each model
         models[m] = getattr(model_list, args.models[m].model)(num_classes, m, args.models[m], **args.models[m].kwargs)
         train_augmentations[m], test_augmentations[m] = models[m].get_augmentation(m)
 
-    action_classifier = tasks.ActionRecognition("action-classifier", models, 1,
-                                                args.total_batch, args.models_dir, num_classes,
+    action_classifier = tasks.ActionRecognition("action-classifier", models,
+                                                1, #batch size
+                                                args.total_batch,
+                                                args.models_dir, 
+                                                num_classes,
                                                 args.test.num_clips, args.models, args=args)
     action_classifier.load_on_gpu(device)
     if args.resume_from is not None:
@@ -91,7 +95,8 @@ def save_feat(model, loader, device, it, num_classes):
     features = {}
     # Iterate over the models
     with torch.no_grad():
-        for i_val, (data, label, video_name, uid) in enumerate(loader):
+        enum_loader = enumerate(loader)
+        for i_val, (data, label, video_name, uid) in enum_loader:
             label = label.to(device)
 
             for m in modalities:

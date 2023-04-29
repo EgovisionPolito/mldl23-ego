@@ -26,6 +26,11 @@ var/
 .installed.cfg
 *.egg
 *.idea
+ek_data/
+configs/debug.yaml
+annotations/
+checkpoints/
+saved_features/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
