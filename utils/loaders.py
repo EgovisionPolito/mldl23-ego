@@ -49,7 +49,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         logger.info(f"Reading pickle at {os.path.join(self.dataset_conf.annotations_path, pickle_name)}")
         self.list_file = pd.read_pickle(os.path.join(self.dataset_conf.annotations_path, pickle_name))
         logger.info(f"Dataloader for {split}-{self.mode} with {len(self.list_file)} samples generated")
-        logger.info(f"List of samples = {self.list_file}")
+        # logger.info(f"List of samples = {self.list_file}")
         self.video_list = [EpicVideoRecord(tup, self.dataset_conf) for tup in self.list_file.iterrows()]
         self.transform = transform  # pipeline of transforms
         self.load_feat = load_feat
