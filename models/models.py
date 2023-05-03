@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from models.I3D import I3D
 from models.I3D import InceptionI3d
+from torch.nn.init import normal_, constant_
     
 class BaselineTA3N(nn.Module):
 
@@ -25,11 +26,17 @@ class BaselineTA3N(nn.Module):
         it is the number of features in input before the logits endpoint in I3D
         """
         self.end_points[end_point] = self.FeatureExtractorModule(model_config=model_config)
+        backbone = self.end_points[end_point]
+        feat_dim = backbone.feat_dim
         if self._final_endpoint == end_point:
             return
         
         end_point = 'Spatial module' # just a fully connected layer
-        self.end_points[end_point] = self.FullyConnectedLayer(in_features) # spatial module is just a fully connected layer
+        fc_spatial_module = self.FullyConnectedLayer(feat_dim)
+        std = 0.001
+        normal_(fc_spatial_module.weight, 0, std)
+		constant_(fc_spatial_module.bias, 0)
+        self.end_points[end_point] = fc_spatial_module # spatial module is just a fully connected layer
         if self._final_endpoint == end_point:
             return
         
@@ -39,7 +46,10 @@ class BaselineTA3N(nn.Module):
             return
 
         end_point = 'Gy'
-        self.end_points[end_point] = self.FullyConnectedLayer(in_features)
+        fc_gy = self.FullyConnectedLayer(feat_dim)
+        normal_(fc_gy.weight, 0, std)
+		constant_(fc_gy.bias, 0)
+        self.end_points[end_point] = fc_gy
         if self._final_endpoint == end_point:
             return
         #missing the final fully connected layer
@@ -74,6 +84,7 @@ class BaselineTA3N(nn.Module):
         def __init__(self, temporal_pooling = 'TemPooling') -> None:
             super(BaselineTA3N.TemporalModule, self).__init__()
             self.pooling = None
+            self.feat_dim = None
             if temporal_pooling == 'TemPooling':
                 pass
             elif temporal_pooling == 'TemRelation':
@@ -92,8 +103,8 @@ class BaselineTA3N(nn.Module):
 
         def __init__(self, num_class, modality, model_config, **kwargs):
             super(BaselineTA3N.FeatureExtractorModule, self).__init__()
-            self.backbone = self.VALID_BACKBONES[backbone_name]
-            self.backbone.load_state_dict(torch.load(weights_path))
+            self.backbone = I3D(num_class, modality, model_config, **kwargs)
+            self.feat_dim = self.backbone.feat_dim
         
         def forward(self, x):
             logits, features = self.backbone(x)
