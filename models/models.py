@@ -4,6 +4,7 @@ import torch.nn as nn
 from models.I3D import I3D
 from models.I3D import InceptionI3d
 from torch.nn.init import normal_, constant_
+import TRNmodule
     
 class BaselineTA3N(nn.Module):
 
@@ -20,6 +21,7 @@ class BaselineTA3N(nn.Module):
                  in_channels=3, model_config=None, backbone='i3d'):
         
         self.end_points = {}
+        self.TRN = TRNmodule.RelationModule(feat_shared_dim, self.num_bottleneck, self.train_segments)
         end_point = 'Backbone'
         """
         this is a way to get the number of features at input
@@ -34,9 +36,11 @@ class BaselineTA3N(nn.Module):
         end_point = 'Spatial module' # just a fully connected layer
         fc_spatial_module = self.FullyConnectedLayer(feat_dim)
         std = 0.001
+        constant_(fc_spatial_module.bias, 0)
         normal_(fc_spatial_module.weight, 0, std)
-		constant_(fc_spatial_module.bias, 0)
+		
         self.end_points[end_point] = fc_spatial_module # spatial module is just a fully connected layer
+        
         if self._final_endpoint == end_point:
             return
         
@@ -47,8 +51,9 @@ class BaselineTA3N(nn.Module):
 
         end_point = 'Gy'
         fc_gy = self.FullyConnectedLayer(feat_dim)
+        constant_(fc_gy.bias, 0)
         normal_(fc_gy.weight, 0, std)
-		constant_(fc_gy.bias, 0)
+
         self.end_points[end_point] = fc_gy
         if self._final_endpoint == end_point:
             return
@@ -81,13 +86,16 @@ class BaselineTA3N(nn.Module):
 
 
     class TemporalModule(nn.Module):
-        def __init__(self, temporal_pooling = 'TemPooling') -> None:
+        def __init__(self, in_features_dim, temporal_pooling = 'TemPooling') -> None:
             super(BaselineTA3N.TemporalModule, self).__init__()
             self.pooling = None
-            self.feat_dim = None
+            self.in_features_dim = in_features_dim
             if temporal_pooling == 'TemPooling':
                 pass
             elif temporal_pooling == 'TemRelation':
+                self.num_bottleneck = 512
+                self.pooling = TRNmodule.RelationModule(in_features_dim, self.num_bottleneck, self.train_segments)
+                self.out_features_dim = self.num_bottleneck
                 pass
             else:
                 raise NotImplementedError
