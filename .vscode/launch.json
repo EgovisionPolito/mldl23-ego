@@ -13,6 +13,7 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": ["data_path", "ek_data"]
+            
         }
     ]
 }

@@ -56,10 +56,10 @@ def main():
         logger.info('{} Net\tModality: {}'.format(args.models[m].model, m))
         # notice that here, the first parameter passed is the input dimension
         # In our case it represents the feature dimensionality which is equivalent to 1024 for I3D
-        models[m] = getattr(model_list, args.models[m].model)(num_classes, m, args.models[m], **args.models[m].kwargs)
+        models[m] = getattr(model_list, args.models[m].model)(num_classes,[5,1024],"Ciao")
 
     # the models are wrapped into the ActionRecognition task which manages all the training steps
-    action_classifier = tasks.ActionRecognition("action-classifier", models, args.batch_size,
+    action_classifier = tasks.TA3N_task("action-classifier", models, args.batch_size,
                                                 args.total_batch, args.models_dir, num_classes,
                                                 args.train.num_clips, args.models, args=args)
     action_classifier.load_on_gpu(device)
@@ -75,13 +75,13 @@ def main():
         # all dataloaders are generated here
         train_loader = torch.utils.data.DataLoader(EpicKitchensDataset(args.dataset.shift.split("-")[0], modalities,
                                                                        'train', args.dataset, None, None, None,
-                                                                       None, load_feat=False),
+                                                                       None, load_feat=True),
                                                    batch_size=args.batch_size, shuffle=True,
                                                    num_workers=args.dataset.workers, pin_memory=True, drop_last=True)
 
         val_loader = torch.utils.data.DataLoader(EpicKitchensDataset(args.dataset.shift.split("-")[-1], modalities,
                                                                      'val', args.dataset, None, None, None,
-                                                                     None, load_feat=False),
+                                                                     None, load_feat=True),
                                                  batch_size=args.batch_size, shuffle=False,
                                                  num_workers=args.dataset.workers, pin_memory=True, drop_last=False)
         train(action_classifier, train_loader, val_loader, device, num_classes)
@@ -110,13 +110,14 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
     global training_iterations, modalities
 
     data_loader_source = iter(train_loader)
+    data_loader_target = iter(val_loader)
     action_classifier.train(True)
     action_classifier.zero_grad()
     iteration = action_classifier.current_iter * (args.total_batch // args.batch_size)
-
+    min_dataset_size = min(len(data_loader_target._dataset), len(data_loader_source._dataset))
     # the batch size should be total_batch but batch accumulation is done with batch size = batch_size.
     # real_iter is the number of iterations if the batch size was really total_batch
-    for i in range(iteration, training_iterations):
+    for i in range(int(iteration), training_iterations):
         # iteration w.r.t. the paper (w.r.t the bs to simulate).... i is the iteration with the actual bs( < tot_bs)
         real_iter = (i + 1) / (args.total_batch // args.batch_size)
         if real_iter == args.train.lr_steps:
@@ -134,27 +135,54 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
         # to redefine the iterator
         try:
             source_data, source_label = next(data_loader_source)
+            source_label_domain = 0*torch.ones([args.batch_size], dtype=int)
+
+            target_data, target_label = next(data_loader_target)
+            target_label_domain = 1*torch.ones([args.batch_size], dtype = int)
+            
+            if (i%(min_dataset_size//args.batch_size))==0:
+                #check if last batch of the smallest dataloader is smaller than batch_size
+                raise StopIteration
         except StopIteration:
-            data_loader_source = iter(train_loader)
+            #reset source dataloader
+            data_loader_source = iter(train_loader) # TODO forse conviene separare i controlli sulla fine dei dataloader?
             source_data, source_label = next(data_loader_source)
+            source_label_domain = 0*torch.ones([args.batch_size], dtype=int)
+            #reset target dataloader
+            data_loader_target = iter(val_loader)
+            target_data, target_label = next(data_loader_target)
+            target_label_domain = 1*torch.ones([args.batch_size], dtype = int)
         end_t = datetime.now()
 
         logger.info(f"Iteration {i}/{training_iterations} batch retrieved! Elapsed time = "
                     f"{(end_t - start_t).total_seconds() // 60} m {(end_t - start_t).total_seconds() % 60} s")
 
         ''' Action recognition'''
+        "******** We start by using the source ****************"
         source_label = source_label.to(device)
-        data = {}
+        source_label_domain= source_label_domain.to(device)
+        target_label_domain= target_label_domain.to(device)
+        data_s = {}
+        data_t ={}
+       
+        for m in modalities:
+            data_s[m] = source_data[m].to(device)
 
-        for clip in range(args.train.num_clips):
-            # in case of multi-clip training one clip per time is processed
-            for m in modalities:
-                data[m] = source_data[m][:, clip].to(device)
-
-            logits, _ = action_classifier.forward(data)
-            action_classifier.compute_loss(logits, source_label, loss_weight=1)
-            action_classifier.backward(retain_graph=False)
-            action_classifier.compute_accuracy(logits, source_label)
+        for m in modalities:
+            data_t[m] = target_data[m].to(device)
+        
+        #forward on source
+        logits_s = action_classifier.forward(data_s)
+        #compute loss on source
+        action_classifier.compute_loss(logits_s, source_label, source_label_domain, loss_weight=1, domain="source")
+        #forward on target
+        logits_t = action_classifier.forward(data_t)
+        #compute loss on target
+        action_classifier.compute_loss(logits_t, target_label, target_label_domain, loss_weight=1, domain="target")
+        #backward based on updated losses
+        action_classifier.backward(retain_graph=False)
+        #accuracy update
+        action_classifier.compute_accuracy(logits_s, source_label)
 
         # update weights and zero gradients if total_batch samples are passed
         if gradient_accumulation_step:

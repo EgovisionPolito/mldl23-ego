@@ -5,7 +5,7 @@ total_batch: 128 # total batch size if training is done with gradient accumulati
 batch_size: 32 # batch size for the forward
 gpus: null # gpus adopted
 wandb_name: null # needed for wandb logging
-resume_from: ./checkpoints/I3D_SourceOnlyD1 # checkpoint directory
+#resume_from: ./checkpoints/I3D_SourceOnlyD1 # checkpoint directory
 logname: null # name of the logs
 models_dir: null # directory containing all the models
 

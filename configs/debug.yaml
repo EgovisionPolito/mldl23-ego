@@ -1,7 +1,7 @@
-action: save # train or test
-name: saved_feat_I3D
-split: test
-resume_from:  ./checkpoints/I3D_SourceOnlyD1
+action: train # train or test
+name: prova_debug_ta3n
+split: train
+resume_from:  #./checkpoints/I3D_SourceOnlyD1
 
 save:
   num_clips: 5
@@ -12,8 +12,8 @@ save:
 
 dataset:
   annotations_path: train_val
-  shift: D1-D1
-  workers: 4
+  shift: D1-D2
+  workers: 0
   stride: 2
   resolution: 224
   RGB:
@@ -22,18 +22,23 @@ dataset:
   Event:
     rgb4e: 6
 
-# these are the action recognition models for each modality
+#these are the action recognition models for each modality
 models:
   RGB:
-    model: I3D
-    dropout: 0.5
-    normalize: False
-    resolution: 224
-    kwargs: {}
-    lr_steps: 3000
-    lr: 0.01
-    sgd_momentum: 0.9
-    weight_decay: 1e-7
-    weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'
+    model: Classifier
+    num_class: 8
+    n_features: [5, 1024]
+    temporal_type: 'mean'
 
-
+# models:
+#   RGB:
+#     model: I3D
+#     dropout: 0.5
+#     normalize: False
+#     resolution: 224
+#     kwargs: {}
+#     lr_steps: 3000
+#     lr: 0.01
+#     sgd_momentum: 0.9
+#     weight_decay: 1e-7
+#     weight_i3d_rgb: './pretrained_i3d/rgb_imagenet.pt'

@@ -20,21 +20,21 @@ class Classifier(nn.Module):
         n_gsf_out = 100
         self.gsf = nn.Sequential()
         self.gsf.add_module('gsf_fc1', nn.Linear(self.n_feat[1], n_gsf_out))
-        self.gsf.add_module('gsf_bn1', nn.BatchNorm1d(n_gsf_out))
+        self.gsf.add_module('gsf_bn1', nn.BatchNorm1d(n_features[0]))
         self.gsf.add_module('gsf_relu1', nn.ReLU(True))
         self.gsf.add_module('gsf_drop1', nn.Dropout())
         self.gsf.add_module('gsf_fc2', nn.Linear(n_gsf_out, n_gsf_out))
-        self.gsf.add_module('gsf_bn2', nn.BatchNorm1d(n_gsf_out))
+        self.gsf.add_module('gsf_bn2', nn.BatchNorm1d(n_features[0]))
         self.gsf.add_module('gsf_relu2', nn.ReLU(True))
 
         #Spatial Domain Discriminator
         self.gsd = nn.Sequential()
         self.gsd.add_module('gsd_fc1', nn.Linear(n_gsf_out, 100))
-        self.gsd.add_module('gsd_bn1', nn.BatchNorm1d(100))
+        self.gsd.add_module('gsd_bn1', nn.BatchNorm1d(n_features[0]))
         self.gsd.add_module('gsd_relu1', nn.ReLU(True))
         self.gsd.add_module('gsd_drop1', nn.Dropout())
         self.gsd.add_module('gsd_fc2', nn.Linear(100, 100))
-        self.gsd.add_module('gsd_bn2', nn.BatchNorm1d(100))
+        self.gsd.add_module('gsd_bn2', nn.BatchNorm1d(n_features[0]))
         self.gsd.add_module('gsd_relu2', nn.ReLU(True))      
         self.gsd.add_module('gsd_fc3', nn.Linear(100, 2))
         self.gsd.add_module('gsd_softmax', nn.LogSoftmax(dim=1))
@@ -69,7 +69,7 @@ class Classifier(nn.Module):
         if(self.temporal_type == "TRN"):
             raise NotImplementedError
         else:
-            temporal_aggregation = torch.mean(x,0)
+            temporal_aggregation = torch.mean(x,1)
         #temporal domain
         temporal_domain_out =  ReverseLayerF.apply(self.gtd(temporal_aggregation),alpha)
         class_out = self.gy(temporal_aggregation)
