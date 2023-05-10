@@ -384,7 +384,8 @@ class I3D(models.VideoModel):
     @staticmethod
     def load(path):
         logger.info("Loading Kinetics weights I3D")
-        state_dict = torch.load(path)
+        # state_dict = torch.load(path)
+        state_dict = torch.load(path,map_location=torch.device('cpu'))
         new_state_dict = OrderedDict()
         for k, v in state_dict.items():
             name = k  # [7:]  # remove `module.`

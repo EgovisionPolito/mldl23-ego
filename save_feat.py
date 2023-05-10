@@ -38,7 +38,8 @@ def main():
     # recover valid paths, domains, classes
     # this will output the domain conversion (D1 -> 8, et cetera) and the label list
     num_classes, valid_labels, source_domain, target_domain = utils.utils.get_domains_and_labels(args)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cpu")
+    # torch.load('',map_location=torch.device('cpu'))
 
     models = {}
     train_augmentations = {}

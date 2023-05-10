@@ -70,7 +70,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         """Compute the loss for this task"""
         pass
 
-    def load_on_gpu(self, device: torch.device = torch.device("cuda")):
+    def load_on_gpu(self, device: torch.device = torch.device("cpu")):
         """Load all the models on the GPU(s) using DataParallel.
 
         Parameters
@@ -93,7 +93,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
         """
         logger.info("Restoring {} for modality {} from {}".format(self.name, m, path))
 
-        checkpoint = torch.load(path)
+        checkpoint = torch.load(path,map_location=torch.device('cpu'))
 
         # Restore the state of the task
         self.current_iter = checkpoint["iteration"]
@@ -186,7 +186,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             )[0].name
 
             model_path = os.path.join(last_models_dir, model)
-            self.__restore_checkpoint(model_path)
+            self.__restore_checkpoint(m,model_path)
 
     def save_model(self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None):
         """Save the model.

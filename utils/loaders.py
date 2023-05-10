@@ -7,6 +7,7 @@ from PIL import Image
 import os
 import os.path
 from utils.logger import logger
+import numpy as np
 
 class EpicKitchensDataset(data.Dataset, ABC):
     def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
@@ -66,17 +67,35 @@ class EpicKitchensDataset(data.Dataset, ABC):
             self.model_features = pd.merge(self.model_features, self.list_file, how="inner", on="uid")
 
     def _get_train_indices(self, record, modality='RGB'):
-        ##################################################################
-        # TODO: implement sampling for training mode                     #
-        # Give the record and the modality, this function should return  #
-        # a list of integers representing the frames to be selected from #
-        # the video clip.                                                #
-        # Remember that the returned array should have size              #
-        #           num_clip x num_frames_per_clip                       #
-        ##################################################################
-        raise NotImplementedError("You should implement _get_train_indices")
+        # Calculate the length of the video
+        video_length = record.end_frame - record.start_frame
+
+        # Calculate the number of frames to stride
+        stride_frames = record.dataset_conf['stride'] * self.num_frames_per_clip[modality]
+
+        # Calculate the starting frame index for each clip
+        start_frames = [int((i / self.num_clips) * (video_length - stride_frames)) for i in range(self.num_clips)]
+
+        # Calculate the list of frames to select for each clip
+        frames_to_select = [j for start_frame in start_frames for j in range(start_frame, start_frame + stride_frames, record.dataset_conf['stride'])]
+
+        return frames_to_select
 
     def _get_val_indices(self, record, modality):
+        # Calculate the length of the video
+        video_length = record.end_frame - record.start_frame
+
+        # Calculate the number of frames to stride
+        stride_frames = record.dataset_conf['stride'] * self.num_frames_per_clip[modality]
+
+        # Calculate the starting frame index for each clip
+        start_frames = [int((i / self.num_clips) * (video_length - stride_frames)) for i in range(self.num_clips)]
+
+        # Calculate the list of frames to select for each clip
+        frames_to_select = [j for start_frame in start_frames for j in range(start_frame, start_frame + stride_frames, record.dataset_conf['stride'])]
+
+        return frames_to_select
+
         ##################################################################
         # TODO: implement sampling for testing mode                      #
         # Give the record and the modality, this function should return  #
@@ -85,7 +104,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_val_indices")
+        # raise NotImplementedError("You should implement _get_val_indices")
 
     def __getitem__(self, index):
 

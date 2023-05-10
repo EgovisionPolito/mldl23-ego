@@ -186,3 +186,8 @@ fabric.properties
 # .idea
 
 utils/output
+.vscode/
+saved_features/
+Test_Results
+test.ipynb
+
