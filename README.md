@@ -31,4 +31,7 @@ NOTE: you need to stay connected to the Google Colab interface at all times for 
 
 ## Link Utili
 Indicazioni Progetto: https://docs.google.com/document/d/1DvOqTtqZ94FobxMGCXh4-EWY3C5AOTzM3Sj1WH8LAvM/edit
+
 Drive: https://drive.google.com/drive/folders/1kxqESSFr2gyYSd25tJ5lu-RInLhTQslH?usp=share_link
+
+Slides: https://docs.google.com/presentation/d/1hL85bNgypdS3q2m5qybGNGqhMQ25H8coroGWZTbLAh8/edit#slide=id.gc6fa3c898_0_0
