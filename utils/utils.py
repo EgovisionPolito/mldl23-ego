@@ -3,7 +3,7 @@ import torch
 
 
 def get_domains_and_labels(args):
-    num_verbs = 8 # forcing num classes to be 8 ?
+    num_verbs = 8
     domains = {'D1': 8, 'D2': 1, 'D3': 22}
     source_domain = domains[args.dataset.shift.split("-")[0]]
     target_domain = domains[args.dataset.shift.split("-")[1]]
@@ -105,6 +105,13 @@ class AverageMeter(object):
 
     def update(self, val, n=1):
         self.val = val
+        self.acc += val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+    
+    def add(self,val,n=1):
+        self.val += val
         self.acc += val
         self.sum += val * n
         self.count += n

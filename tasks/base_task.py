@@ -9,7 +9,7 @@ from utils.logger import logger
 from typing import Dict, Tuple
 
 
-class ActionRecognition(tasks.Task, ABC):
+class base_task(tasks.Task, ABC):
     """Action recognition model."""
     
     def __init__(self, name: str, task_models: Dict[str, torch.nn.Module], batch_size: int, 
@@ -42,6 +42,8 @@ class ActionRecognition(tasks.Task, ABC):
         # self.accuracy and self.loss track the evolution of the accuracy and the training loss
         self.accuracy = utils.Accuracy(topk=(1, 5), classes=num_classes)
         self.loss = utils.AverageMeter()
+        self.loss_class = utils.AverageMeter()
+        self.loss_td = utils.AverageMeter()
         
         self.num_clips = num_clips
 
@@ -72,18 +74,13 @@ class ActionRecognition(tasks.Task, ABC):
             output logits and features
         """
         logits = {}
-        features = {}
+        
         for i_m, m in enumerate(self.modalities):
-            logits[m], feat = self.task_models[m](x=data[m], **kwargs)
-            if i_m == 0:
-                for k in feat.keys():
-                    features[k] = {}
-            for k in feat.keys():
-                features[k][m] = feat[k]
+            logits[m] = self.task_models[m](x=data[m], **kwargs)
+    
+        return logits
 
-        return logits, features
-
-    def compute_loss(self, logits: Dict[str, torch.Tensor], label: torch.Tensor, loss_weight: float=1.0):
+    def compute_loss(self, logits_s: Dict[str, torch.Tensor], label: torch.Tensor, loss_weight: float=1.0,domain="source"):
         """Fuse the logits from different modalities and compute the classification loss.
 
         Parameters
@@ -95,11 +92,26 @@ class ActionRecognition(tasks.Task, ABC):
         loss_weight : float, optional
             weight of the classification loss, by default 1.0
         """
-        fused_logits = reduce(lambda x, y: x + y, logits.values())
-        loss = self.criterion(fused_logits, label) / self.num_clips
-        # Update the loss value, weighting it by the ratio of the batch size to the total 
-        # batch size (for gradient accumulation)
-        self.loss.update(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
+       
+        fused_logits = reduce(lambda x, y: x + y, logits_s.values())
+        fused_logits_class = fused_logits[0]
+        fused_logits_domain = fused_logits[1]
+        if(domain=="source"):
+            self.loss_class.update(self.criterion(fused_logits_class, label))
+            label_d = torch.zeros([label.shape[0]],dtype=int)
+            self.loss_td.update(self.criterion(fused_logits_domain, label_d))
+            # Update the loss value, weighting it by the ratio of the batch size to the total 
+            # batch size (for gradient accumulation)
+            loss = self.loss_class.val + self.loss_td.val;
+            self.loss.update(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
+        else:
+            label_d = torch.ones([label.shape[0]],dtype=int)
+            self.loss_td.add(self.criterion(fused_logits_domain, label_d))
+            loss =  self.loss_td.val
+            self.loss.add(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
+        
+
+        
 
     def compute_accuracy(self, logits: Dict[str, torch.Tensor], label: torch.Tensor):
         """Fuse the logits from different modalities and compute the classification accuracy.
@@ -112,7 +124,7 @@ class ActionRecognition(tasks.Task, ABC):
             ground truth
         """
         fused_logits = reduce(lambda x, y: x + y, logits.values())
-        self.accuracy.update(fused_logits, label)
+        self.accuracy.update(fused_logits[0], label)
 
     def wandb_log(self):
         """Log the current loss and top1/top5 accuracies to wandb."""
@@ -141,6 +153,8 @@ class ActionRecognition(tasks.Task, ABC):
 
         This method must be called after each optimization step.
         """
+        self.loss_class.reset()
+        self.loss_td.reset()
         self.loss.reset()
 
     def reset_acc(self):

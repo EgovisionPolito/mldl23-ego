@@ -66,6 +66,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
                     self.model_features = pd.merge(self.model_features, model_features, how="inner", on="uid")
 
             self.model_features = pd.merge(self.model_features, self.list_file, how="inner", on="uid")
+           
 
     def _get_train_indices(self, record, modality='RGB'):
         ##################################################################
