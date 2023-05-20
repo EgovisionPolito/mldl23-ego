@@ -74,8 +74,19 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_train_indices")
 
+        num_frames = record.num_frames[modality]
+        intervals = []
+
+        if num_frames < 80:
+            print("Something is not right, number of frames should be higher than 80")
+        else:
+            centroids = np.linspace(record.start_frame, record.end_frame, num=7).astype(int)[1:-1]
+            centroids = centroids - record.start_frame
+            for centroid in centroids:
+                intervals.extend(list(range(centroid - 7, centroid + 9)))
+
+        return intervals
     def _get_val_indices(self, record, modality):
         ##################################################################
         # TODO: implement sampling for testing mode                      #
@@ -85,8 +96,20 @@ class EpicKitchensDataset(data.Dataset, ABC):
         # Remember that the returned array should have size              #
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
-        raise NotImplementedError("You should implement _get_val_indices")
+        # raise NotImplementedError("You should implement _get_val_indices")
 
+        num_frames = record.num_frames[modality]
+        intervals = []
+
+        if num_frames < 80:
+            print("Something is not right, number of frames should be higher than 80")
+        else:
+            centroids = np.linspace(record.start_frame, record.end_frame, num=7).astype(int)[1:-1]
+            centroids = centroids - record.start_frame
+            for centroid in centroids:
+                intervals.extend(list(range(centroid - 7, centroid + 9)))
+
+        return intervals
     def __getitem__(self, index):
 
         frames = {}
