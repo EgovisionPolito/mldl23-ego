@@ -1,12 +1,16 @@
 import glob
-from abc import ABC
-import pandas as pd
-from .epic_record import EpicVideoRecord
-import torch.utils.data as data
-from PIL import Image
 import os
 import os.path
+from abc import ABC
+
+import numpy as np
+import pandas as pd
+import torch.utils.data as data
+from PIL import Image
+
 from utils.logger import logger
+from .epic_record import EpicVideoRecord
+
 
 class EpicKitchensDataset(data.Dataset, ABC):
     def __init__(self, split, modalities, mode, dataset_conf, num_frames_per_clip, num_clips, dense_sampling,
@@ -57,7 +61,8 @@ class EpicKitchensDataset(data.Dataset, ABC):
                 # load features for each modality
                 model_features = pd.DataFrame(pd.read_pickle(os.path.join("saved_features",
                                                                           self.dataset_conf[m].features_name + "_" +
-                                                                          pickle_name))['features'])[["uid", "features_" + m]]
+                                                                          pickle_name))['features'])[
+                    ["uid", "features_" + m]]
                 if self.model_features is None:
                     self.model_features = model_features
                 else:
@@ -75,18 +80,28 @@ class EpicKitchensDataset(data.Dataset, ABC):
         #           num_clip x num_frames_per_clip                       #
         ##################################################################
 
-        num_frames = record.num_frames[modality]
+        tot_frames = record.num_frames[modality]
+        num_centroids = self.num_clips
+        frames_per_clip = self.num_frames_per_clip[modality]
+
         intervals = []
 
-        if num_frames < 80:
-            print("Something is not right, number of frames should be higher than 80")
-        else:
-            centroids = np.linspace(record.start_frame, record.end_frame, num=7).astype(int)[1:-1]
-            centroids = centroids - record.start_frame
-            for centroid in centroids:
-                intervals.extend(list(range(centroid - 7, centroid + 9)))
+        # for each clip, uniformly select frames
+        for i in range(num_centroids):
+            start = i * tot_frames // num_centroids  # uses floor division
+            end = (i + 1) * tot_frames // num_centroids if i != num_centroids - 1 else tot_frames  # uses floor division
+
+            # Uniformly select frames within the clip
+            indices = np.linspace(start, end, num=frames_per_clip, endpoint=False, dtype=int)
+            intervals.extend(indices)
+
+        # check if the number of selected frames is as expected
+        if len(intervals) != num_centroids * frames_per_clip:
+            raise ValueError(
+                f"Invalid number of frames: got {len(intervals)}, expected {num_centroids * frames_per_clip}")
 
         return intervals
+
     def _get_val_indices(self, record, modality):
         ##################################################################
         # TODO: implement sampling for testing mode                      #
@@ -98,18 +113,27 @@ class EpicKitchensDataset(data.Dataset, ABC):
         ##################################################################
         # raise NotImplementedError("You should implement _get_val_indices")
 
-        num_frames = record.num_frames[modality]
+        tot_frames = record.num_frames[modality]
+        num_centroids = self.num_clips
+        frames_per_clip = self.num_frames_per_clip[modality]
+
         intervals = []
 
-        if num_frames < 80:
-            print("Something is not right, number of frames should be higher than 80")
-        else:
-            centroids = np.linspace(record.start_frame, record.end_frame, num=7).astype(int)[1:-1]
-            centroids = centroids - record.start_frame
-            for centroid in centroids:
-                intervals.extend(list(range(centroid - 7, centroid + 9)))
+        # for each clip, uniformly select frames
+        for i in range(num_centroids):
+            start = i * tot_frames // num_centroids     # uses floor division
+            end = (i + 1) * tot_frames // num_centroids if i != num_centroids - 1 else tot_frames       # uses floor division
+
+            # Uniformly select frames within the clip
+            indices = np.linspace(start, end, num=frames_per_clip, endpoint=False, dtype=int)
+            intervals.extend(indices)
+
+        # check if the number of selected frames is as expected
+        if len(intervals) != num_centroids * frames_per_clip:
+            raise ValueError(f"Invalid number of frames, got {len(intervals)}, expected {num_centroids * frames_per_clip}")
 
         return intervals
+
     def __getitem__(self, index):
 
         frames = {}
@@ -183,7 +207,7 @@ class EpicKitchensDataset(data.Dataset, ABC):
                 else:
                     raise FileNotFoundError
             return [img]
-        
+
         else:
             raise NotImplementedError("Modality not implemented")
 
