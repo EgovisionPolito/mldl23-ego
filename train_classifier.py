@@ -154,6 +154,9 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
                 data[m] = source_data[m][:, clip].to(device)
 
             logits, _ = action_classifier.forward(data)
+            # TODO also return logits of domain classifier
+            # we are only computing loss for the logits, now we have to also compute the loss for hte domain classifier
+            # such that we have all the losses and we can backpropagate
             action_classifier.compute_loss(logits, source_label, loss_weight=1)
             action_classifier.backward(retain_graph=False)
             action_classifier.compute_accuracy(logits, source_label)
