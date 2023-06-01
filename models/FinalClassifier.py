@@ -17,37 +17,26 @@ class Classifier(nn.Module):
         self.TRN = RelationModuleMultiScale(1024, 1024, self.num_clips)
         self.TPool = nn.AdaptiveAvgPool2d((1, 1024))
 
-        # define two fully connected layers
-        self.fc1 = nn.Sequential(
+        self.gsf = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(1024, 1024),
-            nn.ReLU())
-
-        self.fc2 = nn.Sequential(
+            nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(1024, self.num_classes),
             # we use num_classes because loss funct will check how many classes it gets right
+            nn.Linear(1024, self.num_classes),
             nn.ReLU()
         )
 
-        self.gy = nn.Sequential(
+        self.g_y = nn.Sequential(
             nn.Linear(1024, self.num_classes),
             nn.LogSoftmax(dim=1)
         )
 
-    def forward(self, x, alpha=1):
+    def forward(self, x):
         x = self.gsf(x)
-        # spatial domain out
-        # spatial_domain_out = ReverseLayerF.apply(self.gsd(x), alpha)
+
         # temporal aggregation
-        # if (self.temporal_type == "TRN"):
-        #     raise NotImplementedError
-        # else:
         temporal_aggregation = torch.mean(x, 1)
-        # temporal domain
-        # temporal_domain_out = ReverseLayerF.apply(self.gtd(temporal_aggregation), alpha)
-        class_out = self.gy(temporal_aggregation)
+        output = self.g_y(temporal_aggregation)
 
-        # return  spatial_domain_out, temporal_domain_out, class_out
-
-        return class_out
+        return output

@@ -1,18 +1,17 @@
+import os
 from datetime import datetime
-from statistics import mean
-from utils.logger import logger
+import numpy as np
+import torch
 import torch.nn.parallel
 import torch.optim
-import torch
-from utils.loaders import EpicKitchensDataset
-from utils.args import args
-from utils.utils import pformat_dict
-import utils
-import numpy as np
-import os
+import wandb
 import models as model_list
 import tasks
-import wandb
+import utils
+from utils.args import args
+from utils.loaders import EpicKitchensDataset
+from utils.logger import logger
+from utils.utils import pformat_dict
 
 # global variables among training functions
 training_iterations = 0
@@ -74,7 +73,10 @@ def main():
         training_iterations = args.train.num_iter * (args.total_batch // args.batch_size)
         # all dataloaders are generated here
         train_loader = torch.utils.data.DataLoader(EpicKitchensDataset(args.dataset.shift.split("-")[0], modalities,
-                                                                       'train', args.dataset, None, None, None,
+                                                                       'train', args.dataset,
+                                                                       args.train.num_frames_per_clip.RGB,
+                                                                       args.train.num_clips,
+                                                                       args.train.dense_sampling,
                                                                        None, load_feat=True),
                                                    batch_size=args.batch_size, shuffle=True,
                                                    num_workers=args.dataset.workers, pin_memory=True, drop_last=True)

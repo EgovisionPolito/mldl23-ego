@@ -47,7 +47,7 @@ class ActionRecognition(tasks.Task, ABC):
 
         # Use the cross entropy loss as the default criterion for the classification task
         self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=-100,
-                                                   reduce=None, reduction='none')
+                                                   reduce=None, reduction='mean')
         
         # Initializeq the model parameters and the optimizer
         optim_params = {}
@@ -96,10 +96,11 @@ class ActionRecognition(tasks.Task, ABC):
             weight of the classification loss, by default 1.0
         """
         fused_logits = reduce(lambda x, y: x + y, logits.values())
-        loss = self.criterion(fused_logits, label) / self.num_clips
+        #loss = self.criterion(fused_logits, label) / self.num_clips
+        loss_frame = self.criterion(self.g_y, label.repeat(5))
         # Update the loss value, weighting it by the ratio of the batch size to the total 
         # batch size (for gradient accumulation)
-        self.loss.update(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
+        self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
 
     def compute_accuracy(self, logits: Dict[str, torch.Tensor], label: torch.Tensor):
         """Fuse the logits from different modalities and compute the classification accuracy.
