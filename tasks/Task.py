@@ -186,7 +186,7 @@ class Task(torch.nn.Module, metaclass=ABCMeta):
             )[0].name
 
             model_path = os.path.join(last_models_dir, model)
-            self.__restore_checkpoint(model_path)
+            self.__restore_checkpoint(m, model_path)
 
     def save_model(self, current_iter: int, last_iter_acc: float, prefix: Optional[str] = None):
         """Save the model.
