@@ -1,4 +1,4 @@
-action: save # train or test
+action: save # train or test, for point 4 we use train
 name: saved_feat_I3D
 split: test
 resume_from: /content/drive/MyDrive/saved_models/I3D_SourceOnlyD1

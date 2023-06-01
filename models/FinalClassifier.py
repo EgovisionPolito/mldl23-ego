@@ -17,6 +17,7 @@ class Classifier(nn.Module):
         self.TRN = RelationModuleMultiScale(1024, 1024, self.num_clips)
         self.TPool = nn.AdaptiveAvgPool2d((1, 1024))
 
+        # TODO aggiungere gradientReverse layer
         self.gsf = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(1024, 1024),

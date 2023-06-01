@@ -98,7 +98,8 @@ class ActionRecognition(tasks.Task, ABC):
         fused_logits = reduce(lambda x, y: x + y, logits.values())
         #loss = self.criterion(fused_logits, label) / self.num_clips
         loss_frame = self.criterion(self.g_y, label.repeat(5))
-        # Update the loss value, weighting it by the ratio of the batch size to the total 
+        # TODO add loss for domain (s, r, v, actionClassifier + attention for 5th point)
+        # Update the loss value, weighting it by the ratio of the batch size to the total
         # batch size (for gradient accumulation)
         self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
 
