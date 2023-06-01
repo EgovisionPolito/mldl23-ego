@@ -32,6 +32,34 @@ class Classifier(nn.Module):
             nn.LogSoftmax(dim=1)
         )
 
+        # Spatial domain discriminator (GSD)
+        self.GSD = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 512),
+            nn.LogSoftmax(dim=1)
+        )
+
+        # Temporal domain discriminator (GTD)
+        self.GTD = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 512),
+            nn.LogSoftmax(dim=1)
+        )
+
+        # Relational domain discriminator (GRD)
+        self.GRD = nn.Sequential(
+            nn.Linear(1024, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 512),
+            nn.LogSoftmax(dim=1)
+        )
+
+
     def forward(self, x):
         x = self.gsf(x)
 
