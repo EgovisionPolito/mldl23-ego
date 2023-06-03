@@ -107,6 +107,46 @@ class ActionRecognition(tasks.Task, ABC):
         # self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
 
 
+        # FROM HERE COPIED TO MODIFY
+        # fused_logits = reduce(lambda x, y: x + y, logits.values())
+        dic_logits = logits['RGB']
+        # print(type(dic_logits))
+        # print(dic_logits.keys())
+        loss_frame_source = self.criterion(dic_logits['pred_frame_source'], label.repeat(5))
+        loss_video_source = self.criterion(dic_logits['pred_video_source'], label)
+
+        # DA FARE: gestire bene le dimensioni in ste loss
+        dic_logits['domain_source_frame'] = dic_logits['domain_source_frame'].reshape(-1, 2)
+        dic_logits['domain_target_frame'] = dic_logits['domain_target_target'].reshape(-1, 2)
+
+        loss_GSD_source = self.criterion(dic_logits['domain_source_frame'], torch.cat((torch.ones(
+            (len(dic_logits['domain_source_frame']), 1)), torch.zeros((len(dic_logits['domain_source_frame']), 1))), dim=1))
+        loss_GRD_source = self.criterion(dic_logits['domain_source_relation'], torch.cat((torch.ones(
+            (len(dic_logits['domain_source_relation']), 1)), torch.zeros((len(dic_logits['domain_source_relation']), 1))), dim=1))
+        loss_GVD_source = self.criterion(dic_logits['domain_source_video'], torch.cat(
+            (torch.ones(len(dic_logits['domain_source_video']), 1), torch.zeros(len(dic_logits['domain_source_video']), 1)), dim=1))
+
+        loss_GSD_target = self.criterion(dic_logits['domain_target_frame'], torch.cat(
+            (torch.zeros(len(dic_logits['domain_target_frame']), 1), torch.ones(len(dic_logits['domain_target_frame']), 1)),
+            dim=1))
+        loss_GRD_target = self.criterion(dic_logits['domain_target_relation'], torch.cat(
+            (torch.zeros(len(dic_logits['domain_target_relation']), 1), torch.ones(len(dic_logits['domain_target_relation']), 1)),
+            dim=1))
+        loss_GVD_target = self.criterion(dic_logits['domain_target_video'], torch.cat(
+            (torch.zeros(len(dic_logits['domain_target_video']), 1), torch.ones(len(dic_logits['domain_target_video']), 1)),
+            dim=1))
+
+        loss = loss_frame_source + loss_video_source
+
+        if 'GSD' in self.model_args['RGB']['domain_adapt_strategy']:
+            loss += loss_GSD_source + loss_GSD_target
+        if 'GRD' in self.model_args['RGB']['domain_adapt_strategy']:
+            loss += loss_GRD_source + loss_GRD_target
+        if 'GVD' in self.model_args['RGB']['domain_adapt_strategy']:
+            loss += loss_GVD_source + loss_GVD_target
+
+        self.loss.update(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
+
     def compute_accuracy(self, logits: Dict[str, torch.Tensor], label: torch.Tensor):
         """Fuse the logits from different modalities and compute the classification accuracy.
 
