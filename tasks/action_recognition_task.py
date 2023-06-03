@@ -1,18 +1,19 @@
 from abc import ABC
-import torch
-from utils import utils
 from functools import reduce
-import wandb
-import tasks
-from utils.logger import logger
+from typing import Dict, Tuple, Any
 
-from typing import Dict, Tuple
+import torch
+import wandb
+
+import tasks
+from utils import utils
+from utils.logger import logger
 
 
 class ActionRecognition(tasks.Task, ABC):
     """Action recognition model."""
-    
-    def __init__(self, name: str, task_models: Dict[str, torch.nn.Module], batch_size: int, 
+
+    def __init__(self, name: str, task_models: Dict[str, torch.nn.Module], batch_size: int,
                  total_batch: int, models_dir: str, num_classes: int,
                  num_clips: int, model_args: Dict[str, float], args, **kwargs) -> None:
         """Create an instance of the action recognition model.
@@ -42,13 +43,13 @@ class ActionRecognition(tasks.Task, ABC):
         # self.accuracy and self.loss track the evolution of the accuracy and the training loss
         self.accuracy = utils.Accuracy(topk=(1, 5), classes=num_classes)
         self.loss = utils.AverageMeter()
-        
+
         self.num_clips = num_clips
 
         # Use the cross entropy loss as the default criterion for the classification task
         self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=-100,
                                                    reduce=None, reduction='mean')
-        
+
         # Initializeq the model parameters and the optimizer
         optim_params = {}
         self.optimizer = dict()
@@ -58,7 +59,8 @@ class ActionRecognition(tasks.Task, ABC):
                                                 weight_decay=model_args[m].weight_decay,
                                                 momentum=model_args[m].sgd_momentum)
 
-    def forward(self, data: Dict[str, torch.Tensor], **kwargs) -> Tuple[Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    def forward(self, data: Dict[str, torch.Tensor], **kwargs) -> Tuple[
+        Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
         """Forward step of the task
 
         Parameters
@@ -83,7 +85,7 @@ class ActionRecognition(tasks.Task, ABC):
 
         return logits, features
 
-    def compute_loss(self, logits: Dict[str, torch.Tensor], label: torch.Tensor, loss_weight: float=1.0):
+    def compute_loss(self, logits: Any, label: torch.Tensor, loss_weight: float = 1.0):
         """Fuse the logits from different modalities and compute the classification loss.
 
         Parameters
@@ -95,13 +97,15 @@ class ActionRecognition(tasks.Task, ABC):
         loss_weight : float, optional
             weight of the classification loss, by default 1.0
         """
-        fused_logits = reduce(lambda x, y: x + y, logits.values())
-        #loss = self.criterion(fused_logits, label) / self.num_clips
-        loss_frame = self.criterion(self.g_y, label.repeat(5))
-        # TODO add loss for domain (s, r, v, actionClassifier + attention for 5th point)
-        # Update the loss value, weighting it by the ratio of the batch size to the total
-        # batch size (for gradient accumulation)
-        self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
+        # fused_logits = reduce(lambda x, y: x + y, logits.values())
+        # # loss = self.criterion(fused_logits, label) / self.num_clips
+        # loss_frame = self.criterion(self.g_y, label.repeat(5))
+        #
+        # # TODO add loss for domain (s, r, v, actionClassifier + attention for 5th point)
+        # # Update the loss value, weighting it by the ratio of the batch size to the total
+        # # batch size (for gradient accumulation)
+        # self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
+
 
     def compute_accuracy(self, logits: Dict[str, torch.Tensor], label: torch.Tensor):
         """Fuse the logits from different modalities and compute the classification accuracy.
@@ -119,7 +123,7 @@ class ActionRecognition(tasks.Task, ABC):
     def wandb_log(self):
         """Log the current loss and top1/top5 accuracies to wandb."""
         logs = {
-            'loss verb': self.loss.val, 
+            'loss verb': self.loss.val,
             'top1-accuracy': self.accuracy.avg[1],
             'top5-accuracy': self.accuracy.avg[5]
         }
