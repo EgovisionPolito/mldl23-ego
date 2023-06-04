@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 from torch.autograd import Function
-from TRNmodule import RelationModuleMultiScale
+# from TRNmodule import RelationModuleMultiScale
 
 
 # definition of Gradient Reversal Layer
@@ -241,3 +241,35 @@ class Classifier(nn.Module):
     #     output = self.g_y(temporal_aggregation)
     #
     #     return output
+
+class RelationModuleMultiScale(torch.nn.Module):
+    # Temporal Relation module in multiply scale, suming over [2-frame relation, 3-frame relation, ..., n-frame relation]
+
+    def __init__(self, img_feature_dim, num_bottleneck, num_frames):
+        super(RelationModuleMultiScale, self).__init__()
+        self.subsample_num = 3  # how many relations selected to sum up
+        self.img_feature_dim = img_feature_dim
+        self.scales = [i for i in range(num_frames, 1, -1)]  # generate the multiple frame relations
+
+        self.relations_scales = []
+        self.subsample_scales = []
+        for scale in self.scales:
+            relations_scale = self.return_relationset(num_frames, scale)
+            self.relations_scales.append(relations_scale)
+            self.subsample_scales.append(min(self.subsample_num,
+                                             len(relations_scale)))  # how many samples of relation to select in each forward pass
+
+        # self.num_class = num_class
+        self.num_frames = num_frames
+        self.fc_fusion_scales = nn.ModuleList()  # high-tech modulelist
+        for i in range(len(self.scales)):
+            scale = self.scales[i]
+            fc_fusion = nn.Sequential(
+                nn.ReLU(),
+                nn.Linear(scale * self.img_feature_dim, num_bottleneck),
+                nn.ReLU(),
+            )
+
+            self.fc_fusion_scales += [fc_fusion]
+
+        print('Multi-Scale Temporal Relation Network Module in use', ['%d-frame relation' % i for i in self.scales])
