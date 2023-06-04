@@ -13,7 +13,7 @@ train:
   num_iter: 5000 # number of training iterations with total_batch size
   lr_steps: 3000 # steps before reducing learning rate
   eval_freq: 50 # evaluation frequency
-  num_clips: 1 # clips adopted in training
+  num_clips: 5 # clips adopted in training
   dense_sampling: # sampling version adopted in training for each modality
     RGB: True
   num_frames_per_clip: # number of frames adopted in training for each modality
@@ -35,7 +35,7 @@ dataset:
   RGB:
     data_path: ??? # path to RGB data
     tmpl: "img_{:010d}.jpg" # format of RGB filenames
-    features_name: test_feat_kinetics
+    features_name: saved_feat_I3D
   Event: # not neeeded for the project
     rgb4e: 6
 
@@ -49,3 +49,9 @@ models:
     lr: 0.01
     sgd_momentum: 0.9
     weight_decay: 1e-7
+    beta: 0.5
+    avg_modality: Pooling # Pooling or TRN
+    num_clips: 5
+    num_classes: 8
+    baseline_type: video # video or frame
+    domain_adapt_strategy: ['GSD'] #GSD, GRD, GVD

@@ -1,5 +1,4 @@
 from abc import ABC
-from functools import reduce
 from typing import Dict, Tuple, Any
 
 import torch
@@ -59,8 +58,7 @@ class ActionRecognition(tasks.Task, ABC):
                                                 weight_decay=model_args[m].weight_decay,
                                                 momentum=model_args[m].sgd_momentum)
 
-    def forward(self, data: Dict[str, torch.Tensor], **kwargs) -> Tuple[
-        Dict[str, torch.Tensor], Dict[str, torch.Tensor]]:
+    def forward(self, data: Dict[str, torch.Tensor], **kwargs) -> tuple[dict[Any, Any], dict[Any, dict[Any, Any]]]:
         """Forward step of the task
 
         Parameters
@@ -85,7 +83,7 @@ class ActionRecognition(tasks.Task, ABC):
 
         return logits, features
 
-    def compute_loss(self, logits: Any, label: torch.Tensor, loss_weight: float = 1.0):
+    def compute_loss(self, logits: Dict[str, Dict[str, torch.Tensor]], label: torch.Tensor, loss_weight: float = 1.0):
         """Fuse the logits from different modalities and compute the classification loss.
 
         Parameters
@@ -106,8 +104,6 @@ class ActionRecognition(tasks.Task, ABC):
         # # batch size (for gradient accumulation)
         # self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
 
-
-        # FROM HERE COPIED TO MODIFY
         # fused_logits = reduce(lambda x, y: x + y, logits.values())
         dic_logits = logits['RGB']
         # print(type(dic_logits))
@@ -115,25 +111,31 @@ class ActionRecognition(tasks.Task, ABC):
         loss_frame_source = self.criterion(dic_logits['pred_frame_source'], label.repeat(5))
         loss_video_source = self.criterion(dic_logits['pred_video_source'], label)
 
-        # DA FARE: gestire bene le dimensioni in ste loss
+        # TODO: check dimensions
         dic_logits['domain_source_frame'] = dic_logits['domain_source_frame'].reshape(-1, 2)
         dic_logits['domain_target_frame'] = dic_logits['domain_target_target'].reshape(-1, 2)
 
         loss_GSD_source = self.criterion(dic_logits['domain_source_frame'], torch.cat((torch.ones(
-            (len(dic_logits['domain_source_frame']), 1)), torch.zeros((len(dic_logits['domain_source_frame']), 1))), dim=1))
+            (len(dic_logits['domain_source_frame']), 1)), torch.zeros((len(dic_logits['domain_source_frame']), 1))),
+            dim=1))
         loss_GRD_source = self.criterion(dic_logits['domain_source_relation'], torch.cat((torch.ones(
-            (len(dic_logits['domain_source_relation']), 1)), torch.zeros((len(dic_logits['domain_source_relation']), 1))), dim=1))
+            (len(dic_logits['domain_source_relation']), 1)), torch.zeros(
+            (len(dic_logits['domain_source_relation']), 1))), dim=1))
         loss_GVD_source = self.criterion(dic_logits['domain_source_video'], torch.cat(
-            (torch.ones(len(dic_logits['domain_source_video']), 1), torch.zeros(len(dic_logits['domain_source_video']), 1)), dim=1))
+            (torch.ones(len(dic_logits['domain_source_video']), 1),
+             torch.zeros(len(dic_logits['domain_source_video']), 1)), dim=1))
 
         loss_GSD_target = self.criterion(dic_logits['domain_target_frame'], torch.cat(
-            (torch.zeros(len(dic_logits['domain_target_frame']), 1), torch.ones(len(dic_logits['domain_target_frame']), 1)),
+            (torch.zeros(len(dic_logits['domain_target_frame']), 1),
+             torch.ones(len(dic_logits['domain_target_frame']), 1)),
             dim=1))
         loss_GRD_target = self.criterion(dic_logits['domain_target_relation'], torch.cat(
-            (torch.zeros(len(dic_logits['domain_target_relation']), 1), torch.ones(len(dic_logits['domain_target_relation']), 1)),
+            (torch.zeros(len(dic_logits['domain_target_relation']), 1),
+             torch.ones(len(dic_logits['domain_target_relation']), 1)),
             dim=1))
         loss_GVD_target = self.criterion(dic_logits['domain_target_video'], torch.cat(
-            (torch.zeros(len(dic_logits['domain_target_video']), 1), torch.ones(len(dic_logits['domain_target_video']), 1)),
+            (torch.zeros(len(dic_logits['domain_target_video']), 1),
+             torch.ones(len(dic_logits['domain_target_video']), 1)),
             dim=1))
 
         loss = loss_frame_source + loss_video_source
@@ -157,8 +159,8 @@ class ActionRecognition(tasks.Task, ABC):
         label : torch.Tensor
             ground truth
         """
-        fused_logits = reduce(lambda x, y: x + y, logits.values())
-        self.accuracy.update(fused_logits, label)
+        # fused_logits = reduce(lambda x, y: x + y, logits.values())
+        self.accuracy.update(logits, label)
 
     def wandb_log(self):
         """Log the current loss and top1/top5 accuracies to wandb."""

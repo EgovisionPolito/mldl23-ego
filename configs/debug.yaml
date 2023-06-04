@@ -1,5 +1,5 @@
 action: train # train or test
-name: test
+name: train
 
 dataset:
   shift: D1-D1

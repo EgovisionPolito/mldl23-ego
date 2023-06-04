@@ -1,10 +1,12 @@
 import os
 from datetime import datetime
+
 import numpy as np
 import torch
 import torch.nn.parallel
 import torch.optim
 import wandb
+
 import models as model_list
 import tasks
 import utils
@@ -55,7 +57,8 @@ def main():
         logger.info('{} Net\tModality: {}'.format(args.models[m].model, m))
         # notice that here, the first parameter passed is the input dimension
         # In our case it represents the feature dimensionality which is equivalent to 1024 for I3D
-        models[m] = getattr(model_list, args.models[m].model)()
+        # second () gets the arguments needed by the models
+        models[m] = getattr(model_list, args.models[m].model)(args.models[m])
 
     # the models are wrapped into the ActionRecognition task which manages all the training steps
     action_classifier = tasks.ActionRecognition("action-classifier", models, args.batch_size,
@@ -82,7 +85,10 @@ def main():
                                                    num_workers=args.dataset.workers, pin_memory=True, drop_last=True)
 
         val_loader = torch.utils.data.DataLoader(EpicKitchensDataset(args.dataset.shift.split("-")[-1], modalities,
-                                                                     'val', args.dataset, None, None, None,
+                                                                     'val', args.dataset,
+                                                                     args.test.num_frames_per_clip.RGB,
+                                                                     args.test.num_clips,
+                                                                     args.test.dense_sampling,
                                                                      None, load_feat=True),
                                                  batch_size=args.batch_size, shuffle=False,
                                                  num_workers=args.dataset.workers, pin_memory=True, drop_last=False)
@@ -92,7 +98,10 @@ def main():
         if args.resume_from is not None:
             action_classifier.load_last_model(args.resume_from)
         val_loader = torch.utils.data.DataLoader(EpicKitchensDataset(args.dataset.shift.split("-")[-1], modalities,
-                                                                     'val', args.dataset, None, None, None,
+                                                                     'val', args.dataset,
+                                                                     args.test.num_frames_per_clip.RGB,
+                                                                     args.test.num_clips,
+                                                                     args.test.dense_sampling,
                                                                      None, load_feat=True),
                                                  batch_size=args.batch_size, shuffle=False,
                                                  num_workers=args.dataset.workers, pin_memory=True, drop_last=False)
@@ -148,18 +157,13 @@ def train(action_classifier, train_loader, val_loader, device, num_classes):
         source_label = source_label.to(device)
         data = {}
 
-        for clip in range(args.train.num_clips):
-            # in case of multi-clip training one clip per time is processed
-            for m in modalities:
-                data[m] = source_data[m][:, clip].to(device)
+        for m in modalities:
+            data[m] = source_data[m][:, :args.train.num_clips].to(device)
 
             logits, _ = action_classifier.forward(data)
-            # TODO also return logits of domain classifier
-            # we are only computing loss for the logits, now we have to also compute the loss for hte domain classifier
-            # such that we have all the losses and we can backpropagate
             action_classifier.compute_loss(logits, source_label, loss_weight=1)
             action_classifier.backward(retain_graph=False)
-            action_classifier.compute_accuracy(logits, source_label)
+            action_classifier.compute_accuracy(logits['RGB']['pred_video_source'], source_label)
 
         # update weights and zero gradients if total_batch samples are passed
         if gradient_accumulation_step:
@@ -210,21 +214,23 @@ def validate(model, val_loader, device, it, num_classes):
 
             for m in modalities:
                 batch = data[m].shape[0]
+                # TODO maybe to remove the first argument
                 logits[m] = torch.zeros((args.test.num_clips, batch, num_classes)).to(device)
 
             clip = {}
-            for i_c in range(args.test.num_clips):
-                for m in modalities:
-                    clip[m] = data[m][:, i_c].to(device)
-
-                output, _ = model(clip)
-                for m in modalities:
-                    logits[m][i_c] = output[m]
-
+            # for i_c in range(args.test.num_clips):
+            start_dict = {}
             for m in modalities:
-                logits[m] = torch.mean(logits[m], dim=0)
+                clip[m] = data[m][:, :args.test.num_clips].to(device)
+                start_dict[m] = torch.ones(clip[m].shape).to(device)
+                output, _ = model(start_dict, clip)
+                for m in modalities:
+                    logits[m] = output[m]['pred_video_source']
 
-            model.compute_accuracy(logits, label)
+            # for m in modalities:
+            #     logits[m] = torch.mean(logits[m], dim=0)
+
+            model.compute_accuracy(logits['RGB'], label)
 
             if (i_val + 1) % (len(val_loader) // 5) == 0:
                 logger.info("[{}/{}] top1= {:.3f}% top5 = {:.3f}%".format(i_val + 1, len(val_loader),
