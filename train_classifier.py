@@ -21,7 +21,7 @@ modalities = None
 np.random.seed(13696641)
 torch.manual_seed(13696641)
 
-
+# TODO 6/7: fare i due train loader, aggiustare il forward dentro action_recognition
 def init_operations():
     """
     parse all the arguments, generate the logger, check gpus to be used and wandb
@@ -58,7 +58,7 @@ def main():
         # notice that here, the first parameter passed is the input dimension
         # In our case it represents the feature dimensionality which is equivalent to 1024 for I3D
         # second () gets the arguments needed by the models
-        print(args.models[m])
+        # print(args.models[m])
         models[m] = getattr(model_list, args.models[m].model)(num_classes, args.models[m])
 
     # the models are wrapped into the ActionRecognition task which manages all the training steps
