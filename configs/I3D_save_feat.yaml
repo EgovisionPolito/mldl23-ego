@@ -1,4 +1,4 @@
-action: save # train or test, for point 4 we use train
+action: train # train or test, for point 4 we use train
 name: saved_feat_I3D
 split: test
 resume_from: /content/drive/MyDrive/saved_models/I3D_SourceOnlyD1
@@ -25,7 +25,7 @@ dataset:
 # these are the action recognition models for each modality
 models:
   RGB:
-    model: I3D
+    model: Classifier
     dropout: 0.5
     normalize: False
     resolution: 224

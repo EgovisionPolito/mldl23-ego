@@ -58,7 +58,8 @@ def main():
         # notice that here, the first parameter passed is the input dimension
         # In our case it represents the feature dimensionality which is equivalent to 1024 for I3D
         # second () gets the arguments needed by the models
-        models[m] = getattr(model_list, args.models[m].model)(args.models[m])
+        print(args.models[m])
+        models[m] = getattr(model_list, args.models[m].model)(num_classes, args.models[m])
 
     # the models are wrapped into the ActionRecognition task which manages all the training steps
     action_classifier = tasks.ActionRecognition("action-classifier", models, args.batch_size,
@@ -215,7 +216,7 @@ def validate(model, val_loader, device, it, num_classes):
             for m in modalities:
                 batch = data[m].shape[0]
                 # TODO maybe to remove the first argument
-                logits[m] = torch.zeros((args.test.num_clips, batch, num_classes)).to(device)
+                logits[m] = torch.zeros((batch, num_classes)).to(device)
 
             clip = {}
             # for i_c in range(args.test.num_clips):

@@ -1,7 +1,6 @@
 import torch
 from torch import nn
 from torch.autograd import Function
-# from TRNmodule import RelationModuleMultiScale
 
 
 # definition of Gradient Reversal Layer
@@ -27,7 +26,7 @@ class Classifier(nn.Module):
         self.TRN = RelationModuleMultiScale(1024, 1024, self.num_clips)
         self.TPool = nn.AdaptiveAvgPool2d((1, 1024))
 
-        #the input will be 5x1024 for features_rgb inside the pickles
+        # the input will be 5x1024 for features_rgb inside the pickles
         self.gsf = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(1024, 1024),
@@ -44,7 +43,7 @@ class Classifier(nn.Module):
             nn.Linear(1024, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
-            nn.Linear(512, 2), # TODO why 2?
+            nn.Linear(512, 2),  # TODO why 2?
             nn.LogSoftmax(dim=1)
         )
 
@@ -75,7 +74,6 @@ class Classifier(nn.Module):
             nn.Linear(1024, self.num_classes),
             nn.Softmax())
 
-
     # same as UDA
     def domain_classifier_frame(self, feat, beta):
         feat_fc_domain_frame = GradReverse.apply(feat, beta)
@@ -87,7 +85,7 @@ class Classifier(nn.Module):
     def domain_classifier_relation(self, feat_relation, beta):
 
         pred_fc_domain_relation_video = None
-        for i in range(len(self.relation_domain_classifier_all)):   #HERE we call the GRD
+        for i in range(len(self.relation_domain_classifier_all)):  # HERE we call the GRD
             feat_relation_single = feat_relation[:, i, :].squeeze(1)  # 32x1x1024 -> 32x1024
             feat_fc_domain_relation_single = GradReverse.apply(feat_relation_single,
                                                                beta)  # the same beta for all relations (for now)
@@ -111,7 +109,6 @@ class Classifier(nn.Module):
 
         return pred_fc_domain_video
 
-
     # method to either pool or TRN
     def temporal_modality(self, x):
 
@@ -123,7 +120,6 @@ class Classifier(nn.Module):
         elif self.avg_modality == 'TRN':
             x = self.TRN(x)
         return x
-
 
     def forward(self, input_source, input_target):
         batch_source = input_source.size()[0]
@@ -148,14 +144,17 @@ class Classifier(nn.Module):
 
         # === adversarial branch (frame-level), chiara said: clip-level ===#
         pred_fc_domain_frame_source = self.domain_classifier_frame(feat_fc_source, beta)  # 160 x 1024 --> 160 x 2
-        pred_fc_domain_frame_target = self.domain_classifier_frame(feat_fc_target, beta)  # 160 x 1024 --> 160 x 2, prediction domain output
+        pred_fc_domain_frame_target = self.domain_classifier_frame(feat_fc_target,
+                                                                   beta)  # 160 x 1024 --> 160 x 2, prediction domain output
 
         # same as UDA
         # pred_domain_all_source.append(pred_fc_domain_frame_source.view((batch_source, num_segments) + pred_fc_domain_frame_source.size()[-1:]))
         # pred_domain_all_target.append(pred_fc_domain_frame_target.view((batch_target, num_segments) + pred_fc_domain_frame_target.size()[-1:]))
 
-        pred_fc_domain_frame_source = pred_fc_domain_frame_source.view((batch_source, num_segments) + pred_fc_domain_frame_source.size()[-1:])
-        pred_fc_domain_frame_target = pred_fc_domain_frame_target.view((batch_target, num_segments) + pred_fc_domain_frame_target.size()[-1:])
+        pred_fc_domain_frame_source = pred_fc_domain_frame_source.view(
+            (batch_source, num_segments) + pred_fc_domain_frame_source.size()[-1:])
+        pred_fc_domain_frame_target = pred_fc_domain_frame_target.view(
+            (batch_target, num_segments) + pred_fc_domain_frame_target.size()[-1:])
 
         # changed the method to be the same of our code, which calls GSD
         # === source layers (frame-level) ===#
@@ -174,13 +173,12 @@ class Classifier(nn.Module):
             pred_fc_domain_video_relation_target = self.domain_classifier_relation(feat_fc_video_relation_target,
                                                                                    beta)  # 32 x 4 x 1024 --> 32 x 2
 
-
         # === prediction (video-level) ===#
         # sum up relation features (ignore 1-relation)
         # in case of AVGpool we already only have 1 clip so it would be pointless to sum, but we leave it like this for
         # better clarity
         feat_fc_video_source = torch.sum(feat_fc_video_relation_source, 1)  # 32 x 4 x 1024 --> 32 x 1024
-        feat_fc_video_target = torch.sum(feat_fc_video_relation_target, 1) # 32 x 4 x 1024 --> 32 x 1024
+        feat_fc_video_target = torch.sum(feat_fc_video_relation_target, 1)  # 32 x 4 x 1024 --> 32 x 1024
 
         # now we have to make the classifier on both the previously found things
         pred_fc_video_source = self.fc_classifier_video(feat_fc_video_source)
@@ -189,15 +187,16 @@ class Classifier(nn.Module):
         pred_fc_domain_video_source = self.domain_classifier_video(feat_fc_video_source, beta)
         pred_fc_domain_video_target = self.domain_classifier_video(feat_fc_video_target, beta)
 
-
         # now we aggregate all the domain prediction in one single variable
         if self.avg_modality == 'TRN':  # append domain_relation_predictions
             num_relation = feat_fc_video_relation_source.size()[1]
-            #pred_domain_all_source.append(pred_fc_domain_video_relation_source.view((batch_source, num_relation) + pred_fc_domain_video_relation_source.size()[-1:]))
-            #pred_domain_all_target.append(pred_fc_domain_video_relation_target.view((batch_target, num_relation) + pred_fc_domain_video_relation_target.size()[-1:]))
+            # pred_domain_all_source.append(pred_fc_domain_video_relation_source.view((batch_source, num_relation) + pred_fc_domain_video_relation_source.size()[-1:]))
+            # pred_domain_all_target.append(pred_fc_domain_video_relation_target.view((batch_target, num_relation) + pred_fc_domain_video_relation_target.size()[-1:]))
 
-            pred_fc_domain_video_relation_source = pred_fc_domain_video_relation_source.view((batch_source, num_relation) + pred_fc_domain_video_relation_source.size()[-1:])
-            pred_fc_domain_video_relation_target = pred_fc_domain_video_relation_target.view((batch_target, num_relation) + pred_fc_domain_video_relation_target.size()[-1:])
+            pred_fc_domain_video_relation_source = pred_fc_domain_video_relation_source.view(
+                (batch_source, num_relation) + pred_fc_domain_video_relation_source.size()[-1:])
+            pred_fc_domain_video_relation_target = pred_fc_domain_video_relation_target.view(
+                (batch_target, num_relation) + pred_fc_domain_video_relation_target.size()[-1:])
         elif self.avg_modality == 'Pooling':
             # pred_domain_all_source.append(pred_fc_domain_video_source)  # if not trn-m, add dummy tensors for relation features
             # pred_domain_all_target.append(pred_fc_domain_video_target)  # same as above
@@ -207,8 +206,10 @@ class Classifier(nn.Module):
         # instead of using final output we directly aggregate here
         # pred_domain_all_source.append(pred_fc_domain_video_source.view((batch_source,) + pred_fc_domain_video_source.size()[-1:]))
         # pred_domain_all_target.append(pred_fc_domain_video_target.view((batch_target,) + pred_fc_domain_video_target.size()[-1:]))
-        pred_fc_domain_video_source = pred_fc_domain_video_source.view((batch_source,) + pred_fc_domain_video_source.size()[-1:])
-        pred_fc_domain_video_target = pred_fc_domain_video_target.view((batch_target,) + pred_fc_domain_video_target.size()[-1:])
+        pred_fc_domain_video_source = pred_fc_domain_video_source.view(
+            (batch_source,) + pred_fc_domain_video_source.size()[-1:])
+        pred_fc_domain_video_target = pred_fc_domain_video_target.view(
+            (batch_target,) + pred_fc_domain_video_target.size()[-1:])
 
         # results = {
         #     'domain_source': pred_domain_all_source,
@@ -220,12 +221,12 @@ class Classifier(nn.Module):
         # }
 
         results = {
-            'domain_source_frame' : pred_fc_domain_frame_source,
-            'domain_target_frame' : pred_fc_domain_frame_target,
-            'domain_source_relation' : pred_fc_domain_video_relation_source,
+            'domain_source_frame': pred_fc_domain_frame_source,
+            'domain_target_frame': pred_fc_domain_frame_target,
+            'domain_source_relation': pred_fc_domain_video_relation_source,
             'domain_target_relation': pred_fc_domain_video_relation_target,
             'domain_source_video': pred_fc_domain_video_source,
-            'domain_target_video' : pred_fc_domain_video_target,
+            'domain_target_video': pred_fc_domain_video_target,
             'pred_frame_source': pred_fc_source,
             'pred_video_source': pred_fc_video_source,
             'pred_frame_target': pred_fc_target,
@@ -241,6 +242,7 @@ class Classifier(nn.Module):
     #     output = self.g_y(temporal_aggregation)
     #
     #     return output
+
 
 class RelationModuleMultiScale(torch.nn.Module):
     # Temporal Relation module in multiply scale, suming over [2-frame relation, 3-frame relation, ..., n-frame relation]
@@ -273,3 +275,34 @@ class RelationModuleMultiScale(torch.nn.Module):
             self.fc_fusion_scales += [fc_fusion]
 
         print('Multi-Scale Temporal Relation Network Module in use', ['%d-frame relation' % i for i in self.scales])
+
+    def forward(self, input):
+        # the first one is the largest scale
+        act_scale_1 = input[:, self.relations_scales[0][0], :]
+        act_scale_1 = act_scale_1.view(act_scale_1.size(0), self.scales[0] * self.img_feature_dim)
+        act_scale_1 = self.fc_fusion_scales[0](act_scale_1)
+        act_scale_1 = act_scale_1.unsqueeze(1)  # add one dimension for the later concatenation
+        act_all = act_scale_1.clone()
+
+        for scaleID in range(1, len(self.scales)):
+            act_relation_all = torch.zeros_like(act_scale_1)
+            # iterate over the scales
+            num_total_relations = len(self.relations_scales[scaleID])
+            num_select_relations = self.subsample_scales[scaleID]
+            idx_relations_evensample = [int(ceil(i * num_total_relations / num_select_relations)) for i in
+                                        range(num_select_relations)]
+
+            # for idx in idx_relations_randomsample:
+            for idx in idx_relations_evensample:
+                act_relation = input[:, self.relations_scales[scaleID][idx], :]
+                act_relation = act_relation.view(act_relation.size(0), self.scales[scaleID] * self.img_feature_dim)
+                act_relation = self.fc_fusion_scales[scaleID](act_relation)
+                act_relation = act_relation.unsqueeze(1)  # add one dimension for the later concatenation
+                act_relation_all += act_relation
+
+            act_all = torch.cat((act_all, act_relation_all), 1)
+        return act_all
+
+    def return_relationset(self, num_frames, num_frames_relation):
+        import itertools
+        return list(itertools.combinations([i for i in range(num_frames)], num_frames_relation))
