@@ -58,13 +58,15 @@ class ActionRecognition(tasks.Task, ABC):
                                                 weight_decay=model_args[m].weight_decay,
                                                 momentum=model_args[m].sgd_momentum)
 
-    def forward(self, data: Dict[str, torch.Tensor], **kwargs) -> Tuple[Dict[Any, Any], Dict[Any, Dict[Any, Any]]]:
+    def forward(self, data_source: Dict[str, torch.Tensor], data_target: Dict[str, torch.Tensor], **kwargs) -> Tuple[Dict[Any, Any], Dict[Any, Dict[Any, Any]]]:
         """Forward step of the task
 
         Parameters
         ----------
-        data : Dict[str, torch.Tensor]
-            a dictionary that stores the input data for each modality 
+        data_source : Dict[str, torch.Tensor]
+            a dictionary that stores the input data for each modality
+        data_target : Dict[str, torch.Tensor]
+            a dictionary that stores the input data for each modality
 
         Returns
         -------
@@ -75,8 +77,8 @@ class ActionRecognition(tasks.Task, ABC):
         features = {}
 
         for i_m, m in enumerate(self.modalities):
-            print(data[m])
-            logits[m], feat = self.task_models[m](x=data[m], **kwargs)
+            print(data_source[m])
+            logits[m], feat = self.task_models[m](input_src =data_source[m], input_trg=data_target[m], **kwargs)
             if i_m == 0:
                 for k in feat.keys():
                     features[k] = {}
