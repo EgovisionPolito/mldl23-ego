@@ -37,14 +37,12 @@ class ActionRecognition(tasks.Task, ABC):
             model-specific arguments
         """
         super().__init__(name, task_models, batch_size, total_batch, models_dir, args, **kwargs)
+        self.device(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         self.model_args = model_args
-
         # self.accuracy and self.loss track the evolution of the accuracy and the training loss
         self.accuracy = utils.Accuracy(topk=(1, 5), classes=num_classes)
         self.loss = utils.AverageMeter()
-
         self.num_clips = num_clips
-
         # Use the cross entropy loss as the default criterion for the classification task
         self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=-100,
                                                    reduce=None, reduction='mean')
@@ -78,7 +76,7 @@ class ActionRecognition(tasks.Task, ABC):
 
         for i_m, m in enumerate(self.modalities):
             print(data_source[m])
-            logits[m], feat = self.task_models[m](input_src =data_source[m], input_trg=data_target[m], **kwargs)
+            logits[m], feat = self.task_models[m](input_source=data_source[m], input_target=data_target[m], **kwargs)
             if i_m == 0:
                 for k in feat.keys():
                     features[k] = {}
@@ -117,30 +115,49 @@ class ActionRecognition(tasks.Task, ABC):
 
         # TODO: check dimensions
         dic_logits['domain_source_frame'] = dic_logits['domain_source_frame'].reshape(-1, 2)
-        dic_logits['domain_target_frame'] = dic_logits['domain_target_target'].reshape(-1, 2)
+        dic_logits['domain_target_frame'] = dic_logits['domain_target_frame'].reshape(-1, 2)
 
         loss_GSD_source = self.criterion(dic_logits['domain_source_frame'], torch.cat((torch.ones(
             (len(dic_logits['domain_source_frame']), 1)), torch.zeros((len(dic_logits['domain_source_frame']), 1))),
-            dim=1))
-        loss_GRD_source = self.criterion(dic_logits['domain_source_relation'], torch.cat((torch.ones(
-            (len(dic_logits['domain_source_relation']), 1)), torch.zeros(
-            (len(dic_logits['domain_source_relation']), 1))), dim=1))
+            dim=1).to(self.device))
+
+        # loss for GRD
+        if self.model_args['RGB']['avg_modality'] == 'TRN':
+            domain_source_relation = dic_logits['domain_source_relation'].reshape(-1, 2)
+            loss_GRD_source = self.criterion(domain_source_relation, torch.cat(
+                (torch.ones((len(domain_source_relation), 1)), torch.zeros((len(domain_source_relation), 1))),
+                dim=1).to(self.device))
+        elif self.model_args['RGB']['avg_modality'] == 'Pooling':
+            loss_GRD_source = self.criterion(dic_logits['domain_source_relation'], torch.cat((torch.ones(
+                (len(dic_logits['domain_source_relation']), 1)), torch.zeros((len(dic_logits['domain_source_relation']), 1))),
+                                                                                       dim=1).to(self.device))
+
         loss_GVD_source = self.criterion(dic_logits['domain_source_video'], torch.cat(
             (torch.ones(len(dic_logits['domain_source_video']), 1),
-             torch.zeros(len(dic_logits['domain_source_video']), 1)), dim=1))
+             torch.zeros(len(dic_logits['domain_source_video']), 1)), dim=1).to(self.device))
 
+        #SAME FOR TARGET NOW
         loss_GSD_target = self.criterion(dic_logits['domain_target_frame'], torch.cat(
             (torch.zeros(len(dic_logits['domain_target_frame']), 1),
              torch.ones(len(dic_logits['domain_target_frame']), 1)),
-            dim=1))
-        loss_GRD_target = self.criterion(dic_logits['domain_target_relation'], torch.cat(
-            (torch.zeros(len(dic_logits['domain_target_relation']), 1),
-             torch.ones(len(dic_logits['domain_target_relation']), 1)),
-            dim=1))
+            dim=1).to(self.device))
+
+        # loss for GRD_target
+        if self.model_args['RGB']['avg_modality'] == 'TRN':
+            domain_target_relation = dic_logits['domain_target_relation'].reshape(-1, 2)
+            loss_GRD_target = self.criterion(domain_target_relation, torch.cat(
+                (torch.ones((len(domain_target_relation), 1)), torch.zeros((len(domain_target_relation), 1))),
+                dim=1).to(self.device))
+        elif self.model_args['RGB']['avg_modality'] == 'Pooling':
+            loss_GRD_target = self.criterion(dic_logits['domain_target_relation'], torch.cat((torch.ones(
+                (len(dic_logits['domain_target_relation']), 1)), torch.zeros(
+                (len(dic_logits['domain_target_relation']), 1))),
+                dim=1).to(self.device))
+
         loss_GVD_target = self.criterion(dic_logits['domain_target_video'], torch.cat(
             (torch.zeros(len(dic_logits['domain_target_video']), 1),
              torch.ones(len(dic_logits['domain_target_video']), 1)),
-            dim=1))
+            dim=1).to(self.device))
 
         loss = loss_frame_source + loss_video_source
 

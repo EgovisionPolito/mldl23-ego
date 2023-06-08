@@ -22,7 +22,7 @@ class Classifier(nn.Module):
         self.num_clips = model_args.num_clips
         self.avg_modality = model_args.avg_modality
         self.num_classes = num_classes
-
+        self.beta = model_args.beta
         self.TRN = RelationModuleMultiScale(1024, 1024, self.num_clips)
         self.TPool = nn.AdaptiveAvgPool2d((1, 1024))
 
@@ -115,7 +115,7 @@ class Classifier(nn.Module):
         x = x.view(-1, self.num_clips, 1024)  # view is used to change the dimension
 
         if self.avg_modality == 'Pooling':
-            x = self.AvgPool(x)
+            x = self.TPool(x)
             # x = x.view(-1, 1024)
         elif self.avg_modality == 'TRN':
             x = self.TRN(x)
