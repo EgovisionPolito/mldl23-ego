@@ -43,7 +43,6 @@ def main():
     global training_iterations, modalities
     init_operations()
     modalities = args.modality
-
     # recover valid paths, domains, classes
     # this will output the domain conversion (D1 -> 8, et cetera) and the label list
     num_classes, valid_labels, source_domain, target_domain = utils.utils.get_domains_and_labels(args)

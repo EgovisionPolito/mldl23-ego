@@ -1,5 +1,5 @@
-action: ??? # train or test
-name: ??? # name of the experiment needed for the logs
+action: train # train or test
+name: firstTry # name of the experiment needed for the logs
 modality: ["RGB"] # modality used
 total_batch: 128 # total batch size if training is done with gradient accumulation
 batch_size: 32 # batch size for the forward

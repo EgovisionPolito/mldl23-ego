@@ -37,8 +37,8 @@ class ActionRecognition(tasks.Task, ABC):
             model-specific arguments
         """
         super().__init__(name, task_models, batch_size, total_batch, models_dir, args, **kwargs)
-        self.device(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
         self.model_args = model_args
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         # self.accuracy and self.loss track the evolution of the accuracy and the training loss
         self.accuracy = utils.Accuracy(topk=(1, 5), classes=num_classes)
         self.loss = utils.AverageMeter()
@@ -75,7 +75,7 @@ class ActionRecognition(tasks.Task, ABC):
         features = {}
 
         for i_m, m in enumerate(self.modalities):
-            print(data_source[m])
+            # print(data_source[m])
             logits[m], feat = self.task_models[m](input_source=data_source[m], input_target=data_target[m], **kwargs)
             if i_m == 0:
                 for k in feat.keys():
@@ -128,6 +128,7 @@ class ActionRecognition(tasks.Task, ABC):
                 (torch.ones((len(domain_source_relation), 1)), torch.zeros((len(domain_source_relation), 1))),
                 dim=1).to(self.device))
         elif self.model_args['RGB']['avg_modality'] == 'Pooling':
+
             loss_GRD_source = self.criterion(dic_logits['domain_source_relation'], torch.cat((torch.ones(
                 (len(dic_logits['domain_source_relation']), 1)), torch.zeros((len(dic_logits['domain_source_relation']), 1))),
                                                                                        dim=1).to(self.device))

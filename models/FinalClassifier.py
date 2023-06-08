@@ -60,9 +60,9 @@ class Classifier(nn.Module):
         self.relation_domain_classifier_all = nn.ModuleList()
         for i in range(self.num_clips - 1):
             relation_domain_classifier = nn.Sequential(
-                nn.Linear(1024, 1024),
+                nn.Linear(512, 512),
                 nn.ReLU(),
-                nn.Linear(1024, 2)
+                nn.Linear(512, 2)
             )
             self.relation_domain_classifier_all += [relation_domain_classifier]
 
@@ -105,14 +105,14 @@ class Classifier(nn.Module):
     # same as UDA
     def domain_classifier_video(self, feat, beta):
         feat_fc_domain_video = GradReverse.apply(feat, beta)
-        pred_fc_domain_video = self.GVD(feat_fc_domain_video)
+        pred_fc_domain_video = self.GTD(feat_fc_domain_video)
 
         return pred_fc_domain_video
 
     # method to either pool or TRN
     def temporal_modality(self, x):
 
-        x = x.view(-1, self.num_clips, 1024)  # view is used to change the dimension
+        x = x.view(-1, self.num_clips, 1024)  # view is used to change the dimension, restoring the original shape
 
         if self.avg_modality == 'Pooling':
             x = self.TPool(x)
