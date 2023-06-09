@@ -110,64 +110,53 @@ class ActionRecognition(tasks.Task, ABC):
         dic_logits = logits['RGB']
         # print(type(dic_logits))
         # print(dic_logits.keys())
-        loss_frame_source = self.criterion(dic_logits['pred_frame_source'], label.repeat(5))
-        loss_video_source = self.criterion(dic_logits['pred_video_source'], label)
+        loss_frame_source_y = self.criterion(dic_logits['pred_frame_source'], label.repeat(5))
+        loss_video_source_y = self.criterion(dic_logits['pred_video_source'], label)
 
         # TODO: check dimensions
         dic_logits['domain_source_frame'] = dic_logits['domain_source_frame'].reshape(-1, 2)
         dic_logits['domain_target_frame'] = dic_logits['domain_target_frame'].reshape(-1, 2)
 
-        loss_GSD_source = self.criterion(dic_logits['domain_source_frame'], torch.cat((torch.ones(
-            (len(dic_logits['domain_source_frame']), 1)), torch.zeros((len(dic_logits['domain_source_frame']), 1))),
-            dim=1).to(self.device))
+        # loss for GSD
+        domain_label_src = torch.zeros(len(dic_logits['domain_source_frame']), dtype=torch.int64)
+        domain_label_trg = torch.ones(len(dic_logits['domain_target_frame']), dtype=torch.int64)
+        domain_label_GSD = torch.cat((domain_label_src, domain_label_trg), 0).to(self.device)
+        gsd_all = torch.cat((dic_logits['domain_source_frame'], dic_logits['domain_target_frame']), 0).to(self.device)
+        loss_GSD = self.criterion(gsd_all, domain_label_GSD)
+        print(loss_GSD)
+
 
         # loss for GRD
         if self.model_args['RGB']['avg_modality'] == 'TRN':
-            domain_source_relation = dic_logits['domain_source_relation'].reshape(-1, 2)
-            loss_GRD_source = self.criterion(domain_source_relation, torch.cat(
-                (torch.ones((len(domain_source_relation), 1)), torch.zeros((len(domain_source_relation), 1))),
-                dim=1).to(self.device))
+            domain_label_src_GRD = torch.zeros(len(dic_logits['domain_source_relation']), dtype=torch.int64)
+            domain_label_trg_GRD = torch.ones(len(dic_logits['domain_target_relation']), dtype=torch.int64)
+            domain_label_GRD = torch.cat((domain_label_src_GRD, domain_label_trg_GRD), 0).to(self.device)
+            grd_all = torch.cat((dic_logits['domain_source_relation'], dic_logits['domain_target_relation']), 0).to(self.device)
+            loss_GRD = self.criterion(grd_all, domain_label_GRD)
+
         elif self.model_args['RGB']['avg_modality'] == 'Pooling':
+            domain_label_src_GRD = torch.zeros(len(dic_logits['domain_source_relation']), dtype=torch.int64)
+            domain_label_trg_GRD = torch.ones(len(dic_logits['domain_target_relation']), dtype=torch.int64)
+            domain_label_GRD = torch.cat((domain_label_src_GRD, domain_label_trg_GRD), 0).to(self.device)
+            grd_all = torch.cat((dic_logits['domain_source_relation'], dic_logits['domain_target_relation']), 0).to(
+                self.device)
+            loss_GRD = self.criterion(grd_all, domain_label_GRD)
 
-            loss_GRD_source = self.criterion(dic_logits['domain_source_relation'], torch.cat((torch.ones(
-                (len(dic_logits['domain_source_relation']), 1)), torch.zeros((len(dic_logits['domain_source_relation']), 1))),
-                                                                                       dim=1).to(self.device))
+        domain_label_src_GVD = torch.zeros(len(dic_logits['domain_source_video']), dtype=torch.int64)
+        domain_label_trg_GVD = torch.ones(len(dic_logits['domain_target_video']), dtype=torch.int64)
+        domain_label_GVD = torch.cat((domain_label_src_GVD, domain_label_trg_GVD), 0).to(self.device)
+        gvd_all = torch.cat((dic_logits['domain_source_video'], dic_logits['domain_target_video']), 0).to(
+            self.device)
+        loss_GVD = self.criterion(gvd_all, domain_label_GVD)
 
-        loss_GVD_source = self.criterion(dic_logits['domain_source_video'], torch.cat(
-            (torch.ones(len(dic_logits['domain_source_video']), 1),
-             torch.zeros(len(dic_logits['domain_source_video']), 1)), dim=1).to(self.device))
-
-        #SAME FOR TARGET NOW
-        loss_GSD_target = self.criterion(dic_logits['domain_target_frame'], torch.cat(
-            (torch.zeros(len(dic_logits['domain_target_frame']), 1),
-             torch.ones(len(dic_logits['domain_target_frame']), 1)),
-            dim=1).to(self.device))
-
-        # loss for GRD_target
-        if self.model_args['RGB']['avg_modality'] == 'TRN':
-            domain_target_relation = dic_logits['domain_target_relation'].reshape(-1, 2)
-            loss_GRD_target = self.criterion(domain_target_relation, torch.cat(
-                (torch.ones((len(domain_target_relation), 1)), torch.zeros((len(domain_target_relation), 1))),
-                dim=1).to(self.device))
-        elif self.model_args['RGB']['avg_modality'] == 'Pooling':
-            loss_GRD_target = self.criterion(dic_logits['domain_target_relation'], torch.cat((torch.ones(
-                (len(dic_logits['domain_target_relation']), 1)), torch.zeros(
-                (len(dic_logits['domain_target_relation']), 1))),
-                dim=1).to(self.device))
-
-        loss_GVD_target = self.criterion(dic_logits['domain_target_video'], torch.cat(
-            (torch.zeros(len(dic_logits['domain_target_video']), 1),
-             torch.ones(len(dic_logits['domain_target_video']), 1)),
-            dim=1).to(self.device))
-
-        loss = loss_frame_source + loss_video_source
+        loss = loss_frame_source_y + loss_video_source_y
 
         if 'GSD' in self.model_args['RGB']['domain_adapt_strategy']:
-            loss += loss_GSD_source + loss_GSD_target
+            loss += loss_GSD
         if 'GRD' in self.model_args['RGB']['domain_adapt_strategy']:
-            loss += loss_GRD_source + loss_GRD_target
+            loss += loss_GRD
         if 'GVD' in self.model_args['RGB']['domain_adapt_strategy']:
-            loss += loss_GVD_source + loss_GVD_target
+            loss += loss_GVD
 
         self.loss.update(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
 
