@@ -128,7 +128,7 @@ def train(action_classifier, train_loader_source, train_loader_target, val_loade
     num_classes: int, number of classes in the classification problem
     """
     global training_iterations, modalities
-
+    modalities = args.modality
     data_loader_source = iter(train_loader_source)
     data_loader_target = iter(train_loader_target)
     action_classifier.train(True)
@@ -219,7 +219,7 @@ def validate(model, val_loader, device, it, num_classes):
     num_classes: int, number of classes in the classification problem
     """
     global modalities
-
+    modalities = args.modality
     model.reset_acc()
     model.train(False)
     logits = {}

@@ -123,7 +123,7 @@ class ActionRecognition(tasks.Task, ABC):
         domain_label_GSD = torch.cat((domain_label_src, domain_label_trg), 0).to(self.device)
         gsd_all = torch.cat((dic_logits['domain_source_frame'], dic_logits['domain_target_frame']), 0).to(self.device)
         loss_GSD = self.criterion(gsd_all, domain_label_GSD)
-        print(loss_GSD)
+
 
 
         # loss for GRD
