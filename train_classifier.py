@@ -58,7 +58,7 @@ def main():
         # In our case it represents the feature dimensionality which is equivalent to 1024 for I3D
         # second () gets the arguments needed by the models
         # print(args.models[m])
-        models[m] = getattr(model_list, args.models[m].model)(num_classes, args.models[m])
+        models[m] = getattr(model_list, args.models[m].model)(args.models[m])
 
     # the models are wrapped into the ActionRecognition task which manages all the training steps
     action_classifier = tasks.ActionRecognition("action-classifier", models, args.batch_size,
@@ -75,6 +75,7 @@ def main():
         # notice, here it is multiplied by tot_batch/batch_size since gradient accumulation technique is adopted
         training_iterations = args.train.num_iter * (args.total_batch // args.batch_size)
         # all dataloaders are generated here
+
         train_loader_source = torch.utils.data.DataLoader(EpicKitchensDataset(args.dataset.shift.split("-")[0], modalities,
                                                                        'train', args.dataset,
                                                                        args.train.num_frames_per_clip.RGB,
@@ -172,15 +173,16 @@ def train(action_classifier, train_loader_source, train_loader_target, val_loade
         target_label = target_label.to(device)
         data_source = {}
         data_target = {}
-
         for m in modalities:
             data_source[m] = source_data[m][:, :args.train.num_clips].to(device)
             data_target[m] = target_data[m][:, :args.train.num_clips].to(device)
+        logits, _ = action_classifier.forward(data_source, data_target)
+        action_classifier.compute_loss(logits, source_label, loss_weight=1)
+        action_classifier.backward(retain_graph=False)
+        action_classifier.compute_accuracy(logits['RGB']['pred_video_source'], source_label)
 
-            logits, _ = action_classifier.forward(data_source, data_target)
-            action_classifier.compute_loss(logits, source_label, loss_weight=1)
-            action_classifier.backward(retain_graph=False)
-            action_classifier.compute_accuracy(logits['RGB']['pred_video_source'], source_label)
+
+
 
         # update weights and zero gradients if total_batch samples are passed
         if gradient_accumulation_step:
@@ -231,22 +233,18 @@ def validate(model, val_loader, device, it, num_classes):
 
             for m in modalities:
                 batch = data[m].shape[0]
-                # TODO maybe to remove the first argument
                 logits[m] = torch.zeros((batch, num_classes)).to(device)
 
             clip = {}
-            # for i_c in range(args.test.num_clips):
-            start_dict = {}
+            dummy_tensor = {}  # dummy tensor to be passed to the model has to be instantiated as a dict ('RGB': tensor)
+            # because forward function in action classifier expects a dict [str: tensor]
             for m in modalities:
                 clip[m] = data[m][:, :args.test.num_clips].to(device)
-                start_dict[m] = torch.ones(clip[m].shape).to(device)
-                output, _ = model(start_dict, clip)
+                dummy_tensor[m] = torch.ones(clip[m].shape).to(device)
+
+                output, _ = model(dummy_tensor, clip)
                 for m in modalities:
-                    logits[m] = output[m]['pred_video_source']
-
-            # for m in modalities:
-            #     logits[m] = torch.mean(logits[m], dim=0)
-
+                    logits[m] = output[m]['pred_video_target']
             model.compute_accuracy(logits['RGB'], label)
 
             if (i_val + 1) % (len(val_loader) // 5) == 0:
@@ -276,3 +274,4 @@ def validate(model, val_loader, device, it, num_classes):
 
 if __name__ == '__main__':
     main()
+
