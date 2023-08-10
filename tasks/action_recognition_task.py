@@ -1,12 +1,12 @@
 from abc import ABC
-from typing import Dict, Tuple, Any
-
 import torch
-import wandb
-
-import tasks
 from utils import utils
+from functools import reduce
+import wandb
+import tasks
 from utils.logger import logger
+
+from typing import Dict, Tuple, Any
 
 
 class ActionRecognition(tasks.Task, ABC):
@@ -38,11 +38,16 @@ class ActionRecognition(tasks.Task, ABC):
         """
         super().__init__(name, task_models, batch_size, total_batch, models_dir, args, **kwargs)
         self.model_args = model_args
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") #dichiariamo che vogliamo lavorare con la GPU
+
+
         # self.accuracy and self.loss track the evolution of the accuracy and the training loss
         self.accuracy = utils.Accuracy(topk=(1, 5), classes=num_classes)
         self.loss = utils.AverageMeter()
+
         self.num_clips = num_clips
+
         # Use the cross entropy loss as the default criterion for the classification task
         self.criterion = torch.nn.CrossEntropyLoss(weight=None, size_average=None, ignore_index=-100,
                                                    reduce=None, reduction='mean')
@@ -56,14 +61,13 @@ class ActionRecognition(tasks.Task, ABC):
                                                 weight_decay=model_args[m].weight_decay,
                                                 momentum=model_args[m].sgd_momentum)
 
-    def forward(self, data_source: Dict[str, torch.Tensor], data_target: Dict[str, torch.Tensor], **kwargs) -> Tuple[Dict[Any, Any], Dict[Any, Dict[Any, Any]]]:
+    def forward(self, data_source: Dict[str, torch.Tensor], data_target: Dict[str, torch.Tensor], **kwargs) -> Tuple[
+        Dict[Any, Any], Dict[Any, Dict[Any, Any]]]: #onestamente questa roba non ha senso
         """Forward step of the task
 
         Parameters
         ----------
-        data_source : Dict[str, torch.Tensor]
-            a dictionary that stores the input data for each modality
-        data_target : Dict[str, torch.Tensor]
+        data : Dict[str, torch.Tensor]
             a dictionary that stores the input data for each modality
 
         Returns
@@ -73,19 +77,29 @@ class ActionRecognition(tasks.Task, ABC):
         """
         logits = {}
         features = {}
-
         for i_m, m in enumerate(self.modalities):
-            # print(data_source[m])
+            #logits[m], feat = self.task_models[m](x=data[m], **kwargs)
             logits[m], feat = self.task_models[m](input_source=data_source[m], input_target=data_target[m], **kwargs)
             if i_m == 0:
                 for k in feat.keys():
                     features[k] = {}
             for k in feat.keys():
                 features[k][m] = feat[k]
+        return logits, features #qua features è vuoto, mentre logits ha i nostri
+        # notare che logits è un dizionario con le modalità, ma noi abbiamo solo RGB
 
-        return logits, features
 
-    def compute_loss(self, logits: Dict[str, Dict[str, torch.Tensor]], label: torch.Tensor, loss_weight: float = 1.0):
+        #results = {
+        #    'domain_source':pred_domain_all_source ,
+        #    'domain_target': pred_domain_all_target,
+        #    'pred_frame_source': pred_fc_source,
+        #    'pred_frame_target': pred_fc_target,
+        #    'pred_video_target': pred_fc_video_target,
+        #    'pred_video_source': pred_fc_video_source,
+        #}
+
+
+    def compute_loss(self, logits: Dict[str, torch.Tensor], label: torch.Tensor, loss_weight: float = 1.0):
         """Fuse the logits from different modalities and compute the classification loss.
 
         Parameters
@@ -97,68 +111,33 @@ class ActionRecognition(tasks.Task, ABC):
         loss_weight : float, optional
             weight of the classification loss, by default 1.0
         """
-        # fused_logits = reduce(lambda x, y: x + y, logits.values())
-        # # loss = self.criterion(fused_logits, label) / self.num_clips
-        # loss_frame = self.criterion(self.g_y, label.repeat(5))
-        #
-        # # TODO add loss for domain (s, r, v, actionClassifier + attention for 5th point)
-        # # Update the loss value, weighting it by the ratio of the batch size to the total
-        # # batch size (for gradient accumulation)
-        # self.loss.update(torch.mean(loss_weight * loss_frame) / (self.total_batch / self.batch_size), self.batch_size)
-
-        # fused_logits = reduce(lambda x, y: x + y, logits.values())
-        dic_logits = logits['RGB']
-        # print(type(dic_logits))
-        # print(dic_logits.keys())
-        loss_frame_source_y = self.criterion(dic_logits['pred_frame_source'], label.repeat(5))
-        loss_video_source_y = self.criterion(dic_logits['pred_video_source'], label)
-
-        # TODO: check dimensions
-        dic_logits['domain_source_frame'] = dic_logits['domain_source_frame'].reshape(-1, 2)
-        dic_logits['domain_target_frame'] = dic_logits['domain_target_frame'].reshape(-1, 2)
-
-        # loss for GSD
-        domain_label_src = torch.zeros(len(dic_logits['domain_source_frame']), dtype=torch.int64)
-        domain_label_trg = torch.ones(len(dic_logits['domain_target_frame']), dtype=torch.int64)
-        domain_label_GSD = torch.cat((domain_label_src, domain_label_trg), 0).to(self.device)
-        gsd_all = torch.cat((dic_logits['domain_source_frame'], dic_logits['domain_target_frame']), 0).to(self.device)
-        loss_GSD = self.criterion(gsd_all, domain_label_GSD)
 
 
+        dic_logits = logits["RGB"]
+        # perchè divide per num_clips?
+        #loss = self.criterion(fused_logits, label) / self.num_clips
 
-        # loss for GRD
-        if self.model_args['RGB']['avg_modality'] == 'TRN':
-            domain_label_src_GRD = torch.zeros(len(dic_logits['domain_source_relation']), dtype=torch.int64)
-            domain_label_trg_GRD = torch.ones(len(dic_logits['domain_target_relation']), dtype=torch.int64)
-            domain_label_GRD = torch.cat((domain_label_src_GRD, domain_label_trg_GRD), 0).to(self.device)
-            grd_all = torch.cat((dic_logits['domain_source_relation'], dic_logits['domain_target_relation']), 0).to(self.device)
-            loss_GRD = self.criterion(grd_all, domain_label_GRD)
 
-        elif self.model_args['RGB']['avg_modality'] == 'Pooling':
-            domain_label_src_GRD = torch.zeros(len(dic_logits['domain_source_relation']), dtype=torch.int64)
-            domain_label_trg_GRD = torch.ones(len(dic_logits['domain_target_relation']), dtype=torch.int64)
-            domain_label_GRD = torch.cat((domain_label_src_GRD, domain_label_trg_GRD), 0).to(self.device)
-            grd_all = torch.cat((dic_logits['domain_source_relation'], dic_logits['domain_target_relation']), 0).to(
-                self.device)
-            loss_GRD = self.criterion(grd_all, domain_label_GRD)
+        loss_frame_source = self.criterion(dic_logits['pred_frame_source'], label.repeat(5)) #serve ad espandere il tensore delle label e matchare la size batch x n_clip = 5
+        loss_video_source = self.criterion(dic_logits['pred_video_source'], label)
 
-        domain_label_src_GVD = torch.zeros(len(dic_logits['domain_source_video']), dtype=torch.int64)
-        domain_label_trg_GVD = torch.ones(len(dic_logits['domain_target_video']), dtype=torch.int64)
-        domain_label_GVD = torch.cat((domain_label_src_GVD, domain_label_trg_GVD), 0).to(self.device)
-        gvd_all = torch.cat((dic_logits['domain_source_video'], dic_logits['domain_target_video']), 0).to(
-            self.device)
-        loss_GVD = self.criterion(gvd_all, domain_label_GVD)
+        #sembra che questi due passaggi siano fondamentali per il formato da passare alla self.criterion. Perchè fa passare da float a long o viceversa
+        dic_logits['domain_source'][0] = dic_logits['domain_source'][0].reshape(-1, 2)
+        dic_logits['domain_target'][0] = dic_logits['domain_target'][0].reshape(-1, 2)
 
-        loss = loss_frame_source_y + loss_video_source_y
+        loss_GSD_source = self.criterion(dic_logits['domain_source'][0], torch.cat((torch.ones((len(dic_logits['domain_source'][0]), 1)), torch.zeros((len(dic_logits['domain_source'][0]), 1))),dim=1).to(self.device))
+        loss_GSD_target = self.criterion(dic_logits['domain_target'][0], torch.cat((torch.zeros(len(dic_logits['domain_target'][0]), 1), torch.ones(len(dic_logits['domain_target'][0]), 1)),dim=1).to(self.device))
+
+
+        loss = loss_frame_source + loss_video_source
 
         if 'GSD' in self.model_args['RGB']['domain_adapt_strategy']:
-            loss += loss_GSD
-        if 'GRD' in self.model_args['RGB']['domain_adapt_strategy']:
-            loss += loss_GRD
-        if 'GVD' in self.model_args['RGB']['domain_adapt_strategy']:
-            loss += loss_GVD
+            loss += (loss_GSD_source + loss_GSD_target)
 
+        # Update the loss value, weighting it by the ratio of the batch size to the total
+        # batch size (for gradient accumulation)
         self.loss.update(torch.mean(loss_weight * loss) / (self.total_batch / self.batch_size), self.batch_size)
+
 
     def compute_accuracy(self, logits: Dict[str, torch.Tensor], label: torch.Tensor):
         """Fuse the logits from different modalities and compute the classification accuracy.
@@ -170,7 +149,6 @@ class ActionRecognition(tasks.Task, ABC):
         label : torch.Tensor
             ground truth
         """
-        # fused_logits = reduce(lambda x, y: x + y, logits.values())
         self.accuracy.update(logits, label)
 
     def wandb_log(self):
