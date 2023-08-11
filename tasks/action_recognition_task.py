@@ -127,12 +127,21 @@ class ActionRecognition(tasks.Task, ABC):
 
         loss_GSD_source = self.criterion(dic_logits['domain_source'][0], torch.cat((torch.ones((len(dic_logits['domain_source'][0]), 1)), torch.zeros((len(dic_logits['domain_source'][0]), 1))),dim=1).to(self.device))
         loss_GSD_target = self.criterion(dic_logits['domain_target'][0], torch.cat((torch.zeros(len(dic_logits['domain_target'][0]), 1), torch.ones(len(dic_logits['domain_target'][0]), 1)),dim=1).to(self.device))
+         
 
+        loss_GVD_source = self.criterion(dic_logits['domain_source'][1], torch.cat((torch.ones((len(dic_logits['domain_source'][1]), 1)), torch.zeros((len(dic_logits['domain_source'][1]), 1))),dim=1).to(self.device))
+        loss_GVD_target = self.criterion(dic_logits['domain_target'][1], torch.cat((torch.zeros(len(dic_logits['domain_target'][1]), 1), torch.ones(len(dic_logits['domain_target'][1]), 1)),dim=1).to(self.device))
+      
+       
 
+  
         loss = loss_frame_source + loss_video_source
 
         if 'GSD' in self.model_args['RGB']['domain_adapt_strategy']:
             loss += (loss_GSD_source + loss_GSD_target)
+
+        if 'GVD' in self.model_args['RGB']['domain_adapt_strategy']:
+            loss += (loss_GVD_source + loss_GVD_target)    
 
         # Update the loss value, weighting it by the ratio of the batch size to the total
         # batch size (for gradient accumulation)
