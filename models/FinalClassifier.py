@@ -23,15 +23,6 @@ class Classifier(nn.Module):
             nn.Linear(1024, 512),
             nn.ReLU())
 
-        self.fc1 = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(1024, 1024),
-            nn.ReLU())
-
-        self.fc2 = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(512, self.num_classes),
-            nn.ReLU())
 
         self.GSD = nn.Sequential(
             nn.Dropout(0.5),
@@ -42,6 +33,16 @@ class Classifier(nn.Module):
             nn.ReLU(),
             nn.Softmax()
             )
+
+        self.GVD = nn.Sequential(
+            nn.Dropout(0.5),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 2),
+            nn.ReLU(),
+            nn.Softmax()
+        )
 
         self.fc_classifier_frame = nn.Sequential(
             nn.Linear(512, self.num_classes),
@@ -54,12 +55,18 @@ class Classifier(nn.Module):
             nn.ReLU(),
             # nn.Softmax()
         )
+
     def domain_classifier_frame(self, feat, beta):
         feat_fc_domain_frame = GradReverse.apply(feat, beta)
         pred_fc_domain_frame = self.GSD(feat_fc_domain_frame)
 
         return pred_fc_domain_frame
 
+    def domain_classifier_video(self, feat, beta):
+        feat_fc_domain_video = GradReverse.apply(feat, beta)
+        pred_fc_domain_video = self.GVD(feat_fc_domain_video)
+
+        return pred_fc_domain_video    
 
 
     def temporal_aggregation(self, x):
@@ -72,6 +79,7 @@ class Classifier(nn.Module):
             #x = self.TRN(x)
             pass #per ora serve per l'indentazione
         return x
+
     def forward(self, input_source, input_target):
         beta = self.beta
         batch_source = input_source.size()[0]
@@ -115,6 +123,15 @@ class Classifier(nn.Module):
 
         feat_fc_video_source = feat_fc_video_relation_source.sum(1)  # 32 x 4 x 512 --> 32 x 512
         feat_fc_video_target = feat_fc_video_relation_target.sum(1)  # 32 x 4 x 512 --> 32 x 512
+        
+        pred_fc_domain_video_source = self.domain_classifier_video(feat_fc_video_source,beta)
+        pred_fc_domain_video_target = self.domain_classifier_video(feat_fc_video_target,beta)
+
+    # Da capire un attimo le dimensioni di questo append !!!
+        pred_domain_all_source.append(pred_fc_domain_video_source.view((batch_source, ) + pred_fc_domain_video_source.size()[-1:]))
+        pred_domain_all_target.append(pred_fc_domain_video_target.view((batch_target, ) + pred_fc_domain_video_target.size()[-1:]))
+
+         
 
         pred_fc_video_source = self.fc_classifier_video(feat_fc_video_source)
         pred_fc_video_target = self.fc_classifier_video(feat_fc_video_target)
