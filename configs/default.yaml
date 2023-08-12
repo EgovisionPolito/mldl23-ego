@@ -49,9 +49,9 @@ models:
     lr: 0.01
     sgd_momentum: 0.9
     weight_decay: 1e-7
-    beta: 0.5
-    avg_modality: Pooling # Pooling or TRN
+    beta: 0.5 #Da Beta in poi abbiamo aggiunto noi
+    avg_modality: TRN # Pooling or TRN
     num_clips: 5
     num_classes: 8
-    baseline_type: video # video or frame
-    domain_adapt_strategy: ['GSD'] #GSD, GRD, GVD
+    #baseline_type: video # video or frame, ma inutile per il nostro scopo
+    domain_adapt_strategy: ['GSD','GRD','GVD'] #GSD, GRD, GVD
