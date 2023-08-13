@@ -81,6 +81,7 @@ class Classifier(nn.Module):
 
     def domain_classifier_relation(self, feat_relation, beta): #copiato da UDA TA3N
         # 32x4x512 --> (32x4)x2
+        print('dimensioni feat_relation',feat_relation.shape)
         pred_fc_domain_relation_video = None
         for i in range(len(self.relation_domain_classifier_all)):
             feat_relation_single = feat_relation[:, i, :].squeeze(1)  # 32x1x512 -> 32x512
@@ -105,6 +106,34 @@ class Classifier(nn.Module):
         elif self.avg_modality == 'TRN':
             x = self.TRN(x)
         return x
+
+    def get_trans_attn(self, pred_domain):
+        softmax = nn.Softmax(dim=1)
+        logsoftmax = nn.LogSoftmax(dim=1)
+        entropy = torch.sum(-softmax(pred_domain) * logsoftmax(pred_domain), 1)
+        weights = 1 - entropy
+
+        return weights
+
+    def get_general_attn(self, feat):
+        num_segments = feat.size()[1]
+        feat = feat.view(-1, feat.size()[-1]) # reshape features: 128x4x256 --> (128x4)x256
+        weights = self.attn_layer(feat) # e.g. (128x4)x1
+        weights = weights.view(-1, num_segments, weights.size()[-1]) # reshape attention weights: (128x4)x1 --> 128x4x1
+        weights = nn.Softmax(weights, dim=1)  # softmax over segments ==> 128x4x1
+
+        return weights
+
+    def get_attn_feat_relation(self, feat_fc, pred_domain, num_segments):
+        if self.use_attn == 'TransAttn':
+          weights_attn = self.get_trans_attn(pred_domain)
+        elif self.use_attn == 'general':
+          weights_attn = self.get_general_attn(feat_fc)
+
+        weights_attn = weights_attn.view(-1, num_segments-1, 1).repeat(1,1,feat_fc.size()[-1]) # reshape & repeat weights (e.g. 16 x 4 x 256) 
+        feat_fc_attn = (weights_attn+1) * feat_fc
+        return feat_fc_attn, weights_attn[:,:,0]
+		      
     def forward(self, input_source, input_target):
         beta = self.beta
         batch_source = input_source.size()[0]
@@ -152,13 +181,29 @@ class Classifier(nn.Module):
         if self.avg_modality == 'TRN':
             num_relation = 4
         else:
-            num_relation = 1
+            num_relation = 1 
 
         pred_domain_all_source.append(pred_fc_domain_video_relation_source.view((batch_source,num_relation) + pred_fc_domain_video_relation_source.size()[-1:]))
         pred_domain_all_target.append(pred_fc_domain_video_relation_target.view((batch_target,num_relation) + pred_fc_domain_video_relation_target.size()[-1:]))
 
+        #per l'attention we need both the relations_feat and domain_pred_rel
+        if self.avg_modality == 'TRN':
+           if 'ATT' in self.domain_adapt_strategy:
+               feat_fc_video_relation_source, attn_relation_source = self.get_attn_feat_relation(feat_fc_video_relation_source, pred_fc_domain_video_relation_source, num_relation)
+               feat_fc_video_relation_target, attn_relation_target = self.get_attn_feat_relation(feat_fc_video_relation_target, pred_fc_domain_video_relation_target, num_relation)
+           else:
+               attn_relation_source = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
+               attn_relation_target = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
+        else: #no attention mechanism
+          attn_relation_source = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
+          attn_relation_target = feat_fc_video_relation_source[:,:,0] # assign random tensors to attention values to avoid runtime error
+
+           
+
         feat_fc_video_source = feat_fc_video_relation_source.sum(1)  # 32 x 1 x 512 (Pooling) 32 x 4 x 512 (TRN) --> 32 x 512
         feat_fc_video_target = feat_fc_video_relation_target.sum(1)  # 32 x 1 x 512 (Pooling) 32 x 4 x 512 (TRN) --> 32 x 512
+        
+        
 
         pred_fc_domain_video_source = self.domain_classifier_video(feat_fc_video_source, beta)
         pred_fc_domain_video_target = self.domain_classifier_video(feat_fc_video_target, beta)
@@ -181,11 +226,12 @@ class Classifier(nn.Module):
             'pred_frame_target': pred_fc_target,
             'pred_video_target': pred_fc_video_target,
             'pred_video_source': pred_fc_video_source,
+            'att_rel_source': attn_relation_source,
+            'att_rel_target':attn_relation_target,
         }
 
         return results, {}
         #return  pred_fc_source, pred_fc_video_source, pred_domain_all_source, pred_fc_target, pred_fc_video_target , pred_domain_all_target
-
 class RelationModuleMultiScale(torch.nn.Module):
     # Temporal Relation module in multiply scale, suming over [2-frame relation, 3-frame relation, ..., n-frame relation]
 
