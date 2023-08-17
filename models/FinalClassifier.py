@@ -13,7 +13,6 @@ class Classifier(nn.Module):
         self.avg_modality = model_args.avg_modality
         self.num_classes = model_args.num_classes
         self.num_clips = model_args.num_clips
-        #self.baseline_type = model_args.baseline_type inutile
         self.beta = model_args.beta
 
         self.AvgPool = nn.AdaptiveAvgPool2d((1, 512))
@@ -31,41 +30,39 @@ class Classifier(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(512, 2),
             nn.ReLU(),
-            nn.Softmax()
+            #nn.Softmax()
             )
-        self.GVD = nn.Sequential(
+        self.GVD = nn.Sequential( #questo si dovrebbe chiamare GTD
             nn.Dropout(0.5),
             nn.Linear(512, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(512, 2),
             nn.ReLU(),
-            nn.Softmax()
+            #nn.Softmax()
         )
 
-        # domain classifier for TRN-M (nel nostro caso M = 5)
-        #if self.avg_modality == 'TRN': effettivamente dobbiamo istanziare questa funzione anche se avg_modality == Pooling
-        self.relation_domain_classifier_all = nn.ModuleList()
-        for i in range(self.num_clips - 1):
-            relation_domain_classifier = nn.Sequential(
-                nn.Linear(512, 512),
-                nn.ReLU(),
-                nn.Linear(512, 2),
-                nn.Softmax() # ci potrebbe stare così abbiamo delle probabilità di appartenenza ad un determinato dominio
-            )
-            self.relation_domain_classifier_all += [relation_domain_classifier]
+        # domain classifier for TRN-M (nel nostro caso M = 4)
+        if self.avg_modality == 'TRN':
+            self.relation_domain_classifier_all = nn.ModuleList()
+            for i in range(self.num_clips - 1):
+                relation_domain_classifier = nn.Sequential(
+                    nn.Linear(512, 512),
+                    nn.ReLU(),
+                    nn.Linear(512, 2),
+                    #nn.Softmax() # ci potrebbe stare così abbiamo delle probabilità di appartenenza ad un determinato dominio
+                )
+                self.relation_domain_classifier_all += [relation_domain_classifier]
 
 
         self.fc_classifier_frame = nn.Sequential(
             nn.Linear(512, self.num_classes),
-            nn.ReLU(),
-            nn.Softmax()
+            nn.ReLU()
         )
         self.fc_classifier_video = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(512, self.num_classes),
-            nn.ReLU(),
-            # nn.Softmax()
+            nn.ReLU()
         )
 
     def domain_classifier_frame(self, feat, beta):
@@ -112,8 +109,6 @@ class Classifier(nn.Module):
         num_segments = self.num_clips
         num_class = self.num_classes
 
-        feat_all_source = []
-        feat_all_target = []
         pred_domain_all_source = []
         pred_domain_all_target = []
 
@@ -123,56 +118,51 @@ class Classifier(nn.Module):
         feat_base_source = input_source.view(-1, input_source.size()[-1]) # e.g. 32 x 5 x 1024 --> 160 x 1024
         feat_base_target = input_target.view(-1, input_target.size()[-1]) # e.g. 32 x 5 x 1024 --> 160 x 1024
 
-        #Adaptive Batch Normalization and shared layers to ask, at the moment we put:
-        # Qua questione shared layer non si capisce
+        # il nostro feature extractor livello frame
         feat_fc_source = self.GSF(feat_base_source) # 160 x 1024 --> 160 x 512
         feat_fc_target = self.GSF(feat_base_target) # 160 x 1024 --> 160 x 512
-        #feat_fc_source = feat_base_source
-        #feat_fc_target = feat_base_target
 
-        # === adversarial branch (frame-level), in our case clip-level ===#
+        # adversarial learning - clip level
         pred_fc_domain_frame_source = self.domain_classifier_frame(feat_fc_source, beta) # 160 x 512 --> 160 x 2
         pred_fc_domain_frame_target = self.domain_classifier_frame(feat_fc_target, beta) # 160 x 512 --> 160 x 2
-
-    # Da capire un attimo le dimensioni di questo append !!!
         pred_domain_all_source.append(pred_fc_domain_frame_source.view((batch_source, num_segments) + pred_fc_domain_frame_source.size()[-1:]))
         pred_domain_all_target.append(pred_fc_domain_frame_target.view((batch_target, num_segments) + pred_fc_domain_frame_target.size()[-1:]))
 
-    #=== prediction (frame-level) ===#
+        # prediction - clip level
         pred_fc_source = self.fc_classifier_frame(feat_fc_source) # 160 x 512 --> 160 x num_classes
         pred_fc_target = self.fc_classifier_frame(feat_fc_target) # 160 x 512 --> 160 x num_classes
 
-        ### aggregate the frame-based features to relation-based features ###
+        # aggregate the clip-based features to relation-based features ###
         feat_fc_video_relation_source = self.temporal_aggregation(feat_fc_source) # 160 x 512 -> 32 x 1 x 512 (Pooling) / 32 x 4 x 512 (TRN)
         feat_fc_video_relation_target = self.temporal_aggregation(feat_fc_target)
 
-        pred_fc_domain_video_relation_source = self.domain_classifier_relation(feat_fc_video_relation_source,beta)
-        pred_fc_domain_video_relation_target = self.domain_classifier_relation(feat_fc_video_relation_target,beta)
-
+        # domain adaptation - relational level
         if self.avg_modality == 'TRN':
-            num_relation = 4
-        else:
-            num_relation = 1
+            num_relation = self.num_clips - 1
+            pred_fc_domain_video_relation_source = self.domain_classifier_relation(feat_fc_video_relation_source,beta) #output size : [128,2]
+            pred_fc_domain_video_relation_target = self.domain_classifier_relation(feat_fc_video_relation_target,beta) #output size : [128,2]
+            pred_domain_all_source.append(pred_fc_domain_video_relation_source.view((batch_source,num_relation) + pred_fc_domain_video_relation_source.size()[-1:]))
+            pred_domain_all_target.append(pred_fc_domain_video_relation_target.view((batch_target,num_relation) + pred_fc_domain_video_relation_target.size()[-1:]))
+            #print(pred_domain_all_source[1].size()) # dovrebbe essere [32,4,2]
 
-        pred_domain_all_source.append(pred_fc_domain_video_relation_source.view((batch_source,num_relation) + pred_fc_domain_video_relation_source.size()[-1:]))
-        pred_domain_all_target.append(pred_fc_domain_video_relation_target.view((batch_target,num_relation) + pred_fc_domain_video_relation_target.size()[-1:]))
-
+        # qui aggreghiamo le features sia che sia pooling o TRN
         feat_fc_video_source = feat_fc_video_relation_source.sum(1)  # 32 x 1 x 512 (Pooling) 32 x 4 x 512 (TRN) --> 32 x 512
         feat_fc_video_target = feat_fc_video_relation_target.sum(1)  # 32 x 1 x 512 (Pooling) 32 x 4 x 512 (TRN) --> 32 x 512
 
+        # domain adaptation - video level
         pred_fc_domain_video_source = self.domain_classifier_video(feat_fc_video_source, beta)
         pred_fc_domain_video_target = self.domain_classifier_video(feat_fc_video_target, beta)
-
-
         pred_domain_all_source.append(pred_fc_domain_video_source.view((batch_source,) + pred_fc_domain_video_source.size()[-1:]))
         pred_domain_all_target.append(pred_fc_domain_video_target.view((batch_target,) + pred_fc_domain_video_target.size()[-1:]))
+
+        if self.avg_modality == 'Pooling': #aggiungiamo un altro append, così da far si che [1] sia un valore dummy
+            pred_domain_all_source.append(pred_fc_domain_video_source.view((batch_source,) + pred_fc_domain_video_source.size()[-1:]))
+            pred_domain_all_target.append(pred_fc_domain_video_target.view((batch_target,) + pred_fc_domain_video_target.size()[-1:]))
+
 
         pred_fc_video_source = self.fc_classifier_video(feat_fc_video_source)
         pred_fc_video_target = self.fc_classifier_video(feat_fc_video_target)
 
-        #=== final output ===# inutile
-        #output_source = self.final_output(pred_fc_source, pred_fc_video_source, num_segments)
-        #output_target = self.final_output(pred_fc_target, pred_fc_video_target, num_segments)
 
         results = {
             'domain_source':pred_domain_all_source ,
