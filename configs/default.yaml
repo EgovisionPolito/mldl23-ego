@@ -54,4 +54,5 @@ models:
     num_clips: 5
     num_classes: 8
     #baseline_type: video # video or frame, ma inutile per il nostro scopo
-    domain_adapt_strategy: ['GSD','GRD','GVD'] #GSD, GRD, GVD
+    domain_adapt_strategy: ['GSD','GRD','GVD','ATT'] #GSD, GRD, GVD
+    use_attn: TransAttn
