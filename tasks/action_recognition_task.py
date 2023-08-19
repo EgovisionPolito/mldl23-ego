@@ -1,4 +1,5 @@
 from abc import ABC
+from torch import nn
 import torch
 from utils import utils
 from functools import reduce
@@ -60,6 +61,19 @@ class ActionRecognition(tasks.Task, ABC):
             self.optimizer[m] = torch.optim.SGD(optim_params[m], model_args[m].lr,
                                                 weight_decay=model_args[m].weight_decay,
                                                 momentum=model_args[m].sgd_momentum)
+
+    def attentive_entropy(self,pred, pred_domain):
+        softmax = nn.Softmax(dim=1)
+        logsoftmax = nn.LogSoftmax(dim=1)
+
+        # attention weight
+        entropy = torch.sum(-softmax(pred_domain) * logsoftmax(pred_domain), 1)
+        weights = 1 + entropy
+
+        # attentive entropy
+        loss = torch.mean(weights * torch.sum(-softmax(pred) * logsoftmax(pred), 1))
+        return loss
+
 
     def forward(self, data_source: Dict[str, torch.Tensor], data_target: Dict[str, torch.Tensor], **kwargs) -> Tuple[
         Dict[Any, Any], Dict[Any, Dict[Any, Any]]]: #onestamente questa roba non ha senso
@@ -149,6 +163,9 @@ class ActionRecognition(tasks.Task, ABC):
             loss_GVD_source = self.criterion(dic_logits['domain_source'][2], torch.cat((torch.ones((len(dic_logits['domain_source'][2]), 1)), torch.zeros((len(dic_logits['domain_source'][2]), 1))),dim=1).to(self.device))
             loss_GVD_target = self.criterion(dic_logits['domain_target'][2], torch.cat((torch.zeros(len(dic_logits['domain_target'][2]), 1), torch.ones(len(dic_logits['domain_target'][2]), 1)),dim=1).to(self.device))
 
+        
+        if 'ATT' in self.model_args['RGB']['domain_adapt_strategy']: 
+            loss_att = self.attentive_entropy(torch.cat((dic_logits['pred_video_source'],dic_logits['pred_video_target']),0),torch.cat((dic_logits['domain_source'][2],dic_logits['domain_target'][2]),0))
 
 
         loss = loss_frame_source + loss_video_source
@@ -161,6 +178,9 @@ class ActionRecognition(tasks.Task, ABC):
 
         if 'GVD' in self.model_args['RGB']['domain_adapt_strategy']:
             loss += (loss_GVD_source + loss_GVD_target)
+
+        if 'ATT' in self.model_args['RGB']['domain_adapt_strategy']: 
+            loss += (loss_att*0.3)    
 
         # Update the loss value, weighting it by the ratio of the batch size to the total
         # batch size (for gradient accumulation)
