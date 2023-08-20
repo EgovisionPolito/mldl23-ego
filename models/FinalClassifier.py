@@ -33,16 +33,16 @@ class Classifier(nn.Module):
             nn.Dropout(0.5),
             nn.Linear(512, 2),
             nn.ReLU(),
-            #nn.Softmax()
+            nn.Softmax()
             )
-        self.GVD = nn.Sequential( #questo si dovrebbe chiamare GTD
+        self.GTD = nn.Sequential( #questo si dovrebbe chiamare GTD
             nn.Dropout(0.5),
             nn.Linear(512, 512),
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(512, 2),
             nn.ReLU(),
-            #nn.Softmax()
+            nn.Softmax()
         )
 
         # domain classifier for TRN-M (nel nostro caso M = 4)
@@ -53,7 +53,7 @@ class Classifier(nn.Module):
                     nn.Linear(512, 512),
                     nn.ReLU(),
                     nn.Linear(512, 2),
-                    #nn.Softmax() # ci potrebbe stare così abbiamo delle probabilità di appartenenza ad un determinato dominio
+                    nn.Softmax() # ci potrebbe stare così abbiamo delle probabilità di appartenenza ad un determinato dominio
                 )
                 self.relation_domain_classifier_all += [relation_domain_classifier]
 
@@ -75,7 +75,7 @@ class Classifier(nn.Module):
         return pred_fc_domain_frame
     def domain_classifier_video(self, feat, beta):
         feat_fc_domain_video = GradReverse.apply(feat, beta)
-        pred_fc_domain_video = self.GVD(feat_fc_domain_video)
+        pred_fc_domain_video = self.GTD(feat_fc_domain_video)
 
         return pred_fc_domain_video
 
