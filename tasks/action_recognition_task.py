@@ -67,7 +67,8 @@ class ActionRecognition(tasks.Task, ABC):
         logsoftmax = nn.LogSoftmax(dim=1)
 
         # attention weight
-        entropy = torch.sum(-softmax(pred_domain) * logsoftmax(pred_domain), 1)
+        #entropy = torch.sum(-softmax(pred_domain) * logsoftmax(pred_domain), 1)
+        entropy = torch.sum(-(pred_domain) * torch.log(pred_domain), 1)
         weights = 1 + entropy
 
         # attentive entropy
