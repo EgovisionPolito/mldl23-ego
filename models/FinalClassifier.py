@@ -107,9 +107,10 @@ class Classifier(nn.Module):
         return x
 
     def get_trans_attn(self, pred_domain):
-        softmax = nn.Softmax(dim=1)
-        logsoftmax = nn.LogSoftmax(dim=1)
-        entropy = torch.sum(-softmax(pred_domain) * logsoftmax(pred_domain), 1)
+        #softmax = nn.Softmax(dim=1)
+        #logsoftmax = nn.LogSoftmax(dim=1)
+        #entropy = torch.sum(-softmax(pred_domain) * logsoftmax(pred_domain), 1)
+        entropy = torch.sum(-(pred_domain) * torch.log(pred_domain), 1)
         weights = 1 - entropy
 
         return weights
